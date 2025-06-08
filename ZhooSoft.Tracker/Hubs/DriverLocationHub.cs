@@ -57,7 +57,7 @@ namespace ZhooSoft.Tracker.Hubs
             }
         }
 
-        public async Task SendBookingRequest(BookingRequest booking)
+        public async Task SendBookingRequest(BookingRequestModel booking)
         {
             var driverConn = ConnectionMapping.GetConnection(booking.DriverId);
             if (driverConn != null)
@@ -79,20 +79,45 @@ namespace ZhooSoft.Tracker.Hubs
             }
         }
 
-        public async Task SendLiveLocationToUser(string userId)
+        public async Task SendLiveLocationToUser(string driverId)
         {
-            var driverId = Context.GetHttpContext()?.Request.Query["userId"];
             if (string.IsNullOrEmpty(driverId)) return;
 
             var location = _store.Get(driverId);
             if (location != null)
             {
-                var userConn = ConnectionMapping.GetConnection(userId);
-                if (userConn != null)
-                {
-                    await Clients.Client(userConn).SendAsync("ReceiveDriverLocation", location);
-                }
+                // Send back to the user who invoked this method
+                await Clients.Caller.SendAsync("ReceiveDriverLocation", location);
             }
         }
+
+        #region Dummy methods
+        public async Task DummyTriggerforBookingRequest()
+        {
+            var driverId = Context.GetHttpContext()?.Request.Query["userId"];
+            var model = new BookingRequestModel
+            {
+                BoookingRequestId = 1,
+                BookingType = RideTypeEnum.Local,
+                Fare = "₹ 194",
+                DistanceAndPayment = "0.1 Km / Cash",
+                PickupLocation = "Muthanampalayam, Tiruppur",
+                PickupAddress = "3/21, Muthanampalayam, Tiruppur, Tamil Nadu 641606, India",
+                PickupLatitude = 11.0176,
+                PickupLongitude = 76.9674,
+                PickupTime = "06 Feb 2024, 07:15 PM",
+                DropoffLocation = "Tiruppur Old Bus Stand",
+                DropLatitude = 10.9902,
+                DropLongitude = 76.9629,
+                RemainingBids = 3,
+                DriverId = driverId,
+                UserId = "0"
+            };
+
+            await SendBookingRequest(model);
+        }
+
+
+        #endregion
     }
 }

@@ -1,6 +1,6 @@
 ﻿namespace ZhooSoft.Tracker.Models
 {
-    public class BookingRequest
+    public class BookingRequestModel
     {
         public RideTypeEnum BookingType { get; set; }
         public string Fare { get; set; }
