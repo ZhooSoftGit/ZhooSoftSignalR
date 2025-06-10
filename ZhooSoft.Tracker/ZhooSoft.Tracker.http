@@ -1,0 +1,6 @@
+@ZhooSoft.Tracker_HostAddress = http://localhost:5272
+
+GET {{ZhooSoft.Tracker_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
