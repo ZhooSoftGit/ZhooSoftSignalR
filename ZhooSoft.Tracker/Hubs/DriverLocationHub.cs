@@ -42,18 +42,25 @@ namespace ZhooSoft.Tracker.Hubs
             if (!string.IsNullOrEmpty(driverId))
             {
                 location.DriverId = driverId;
-                location.Timestamp = DateTime.UtcNow;
                 _store.Update(driverId, location);
 
                 // Send location to user if active ride exists
-                if (RideConnectionMapping.ActiveRides.TryGetValue(driverId, out var rideInfo) && !string.IsNullOrEmpty(rideInfo.UserId))
+                var entry = RideConnectionMapping.ActiveRides.FirstOrDefault(kvp => kvp.Value.DriverId.Equals(driverId));
+                if (!string.IsNullOrEmpty(entry.Key))
                 {
-                    Clients.Client(rideInfo.UserId).SendAsync("ReceiveDriverLocation", new
+                    var rideInfo = entry.Value;
+                    var key = entry.Key;
+                    var userconnection = ConnectionMapping.GetConnection(rideInfo.UserId);
+                    if (userconnection != null)
                     {
-                        DriverId = driverId,
-                        location.Latitude,
-                        location.Longitude
-                    });
+                        Clients.Client(userconnection).SendAsync("ReceiveDriverLocation", new DriverLocation
+                        {
+                            DriverId = driverId,
+                            Longitude = location.Longitude,
+                            Latitude = location.Latitude
+                        });
+                    }
+
                 }
             }
             return Task.CompletedTask;
@@ -232,7 +239,13 @@ namespace ZhooSoft.Tracker.Hubs
             var userId = Context.GetHttpContext()?.Request.Query["userId"];
             var targetUserId = userId.Value == participants.UserId ? participants.DriverId : participants.UserId;
 
-            await Clients.User(targetUserId).SendAsync("OnTripCancelled", rideId);
+            var conn = ConnectionMapping.GetConnection(targetUserId);
+
+            if (conn != null)
+            {
+                await Clients.Client(conn).SendAsync("OnTripCancelled", rideId);
+            }
+
             // Remove from active rides
             RideConnectionMapping.ActiveRides.TryRemove(rideId, out _);
         }
