@@ -1,11 +1,12 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
 using ZhooSoft.Tracker.Models;
 using ZhooSoft.Tracker.Services;
 using ZhooSoft.Tracker.Store;
 
 namespace ZhooSoft.Tracker.Hubs
 {
-    //[Authorize]
+    [Authorize]
     public class DriverLocationHub : Hub
     {
         private readonly DriverLocationStore _store;

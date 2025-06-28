@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using ZhooSoft.Tracker.Hubs;
 using ZhooSoft.Tracker.Models;
@@ -7,6 +8,7 @@ using ZhooSoft.Tracker.Services;
 namespace ZhooSoft.Tracker.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("api/notify")]
     public class NotificationController : ControllerBase
     {
