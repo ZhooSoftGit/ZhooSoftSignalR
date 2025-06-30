@@ -34,5 +34,33 @@ namespace ZhooSoft.Tracker.Controllers
                 Longitude = location.Longitude
             });
         }
+
+        [HttpPost("driver-locations")]
+        [ServiceAuth] // ✅ Shared secret header check
+        public IActionResult GetDriverLocations([FromBody] List<string> driverIds)
+        {
+            if (driverIds == null || !driverIds.Any())
+                return BadRequest("Driver IDs are required.");
+
+            var results = driverIds
+                .Select(id => new
+                {
+                    DriverId = id,
+                    Location = _store.Get(id)
+                })
+                .Where(x => x.Location != null)
+                .Select(x => new DriverLocation
+                {
+                    DriverId = x.DriverId,
+                    Latitude = x.Location.Latitude,
+                    Longitude = x.Location.Longitude
+                })
+                .ToList();
+
+            if (!results.Any())
+                return NotFound("No driver locations available.");
+
+            return Ok(results);
+        }
     }
 }
