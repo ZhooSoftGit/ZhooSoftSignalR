@@ -16,8 +16,8 @@
         public int RemainingBids { get; set; }
         public int BoookingRequestId { get; set; }
         public string? UserName { get; set; }
-        public string DriverId { get; set; }
-        public string UserId { get; set; }
+        public int? DriverId { get; set; }
+        public int UserId { get; set; }
     }
 
     public enum RideTypeEnum

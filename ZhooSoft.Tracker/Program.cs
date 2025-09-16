@@ -8,44 +8,44 @@ using ZhooSoft.Tracker.Store;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
 builder.Services.AddControllers();
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        var jwt = builder.Configuration.GetSection("JwtSettings");
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = jwt["Issuer"],
-            ValidateAudience = true,
-            ValidAudience = jwt["Audience"],
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Secret"]))
-        };
+// Authentication & JWT
+//builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+//    .AddJwtBearer(options =>
+//    {
+//        var jwt = builder.Configuration.GetSection("JwtSettings");
+//        options.TokenValidationParameters = new TokenValidationParameters
+//        {
+//            ValidateIssuer = true,
+//            ValidIssuer = jwt["Issuer"],
+//            ValidateAudience = true,
+//            ValidAudience = jwt["Audience"],
+//            ValidateLifetime = true,
+//            ValidateIssuerSigningKey = true,
+//            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Secret"]))
+//        };
 
-        options.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = context =>
-            {
-                var accessToken = context.Request.Query["access_token"];
-                var path = context.HttpContext.Request.Path;
+//        // 👇 Required so SignalR can authenticate via access_token query
+//        options.Events = new JwtBearerEvents
+//        {
+//            OnMessageReceived = context =>
+//            {
+//                var accessToken = context.Request.Query["access_token"];
+//                var path = context.HttpContext.Request.Path;
 
-                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
-                    context.Token = accessToken;
+//                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+//                    context.Token = accessToken;
 
-                return Task.CompletedTask;
-            }
-        };
-    });
+//                return Task.CompletedTask;
+//            }
+//        };
+//    });
 
-// Add Swagger
+// Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    // Add JWT Authentication to Swagger
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Scheme = "Bearer",
@@ -70,30 +70,49 @@ builder.Services.AddSwaggerGen(c =>
             new string[] {}
         }
     });
-
 });
 
+// SignalR
+builder.Services.AddSingleton<BookingStateService>();
 
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<DriverLocationStore>();
+builder.Services.AddSingleton<BookingMonitorService>();
 
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+// 👇 Add CORS for SignalR (important for mobile/web clients)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials()
+            .SetIsOriginAllowed(_ => true);
+    });
+});
 
 var app = builder.Build();
 
-
 app.UseHttpsRedirection();
 
+// 👇 Order matters
+app.UseRouting();
+app.UseCors("AllowAll");
+
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<DriverLocationHub>("/hubs/location");
 
+
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI(); // 👈 This is required for the Swagger UI page
+    app.UseSwaggerUI();
 }
 
 app.Run();
+

@@ -21,7 +21,7 @@ namespace ZhooSoft.Tracker.Controllers
 
         [HttpGet("driver-location/{driverId}")]
         [ServiceAuth] // ✅ Shared secret header check
-        public IActionResult GetDriverLocation(string driverId)
+        public IActionResult GetDriverLocation(int driverId)
         {
             var location = _store.Get(driverId);
             if (location == null)
@@ -37,7 +37,7 @@ namespace ZhooSoft.Tracker.Controllers
 
         [HttpPost("driver-locations")]
         [ServiceAuth] // ✅ Shared secret header check
-        public IActionResult GetDriverLocations([FromBody] List<string> driverIds)
+        public IActionResult GetDriverLocations([FromBody] List<int> driverIds)
         {
             if (driverIds == null || !driverIds.Any())
                 return BadRequest("Driver IDs are required.");

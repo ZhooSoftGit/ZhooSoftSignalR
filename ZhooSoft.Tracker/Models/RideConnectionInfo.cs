@@ -2,9 +2,9 @@
 {
     public class RideConnectionInfo
     {
-        public string BookingRequestId { get; set; }
-        public string UserId { get; set; }
-        public string DriverId { get; set; }
+        public int BookingRequestId { get; set; }
+        public int UserId { get; set; }
+        public int DriverId { get; set; }
 
         public string StartTripOtp { get; set; } = default!;
         public string EndTripOtp { get; set; } = default!;

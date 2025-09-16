@@ -1,7 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using ZhooSoft.Tracker.Common;
-using ZhooSoft.Tracker.Helpers;
-using ZhooSoft.Tracker.Models;
 using ZhooSoft.Tracker.Store;
 
 namespace ZhooSoft.Tracker.Controllers
@@ -26,5 +24,14 @@ namespace ZhooSoft.Tracker.Controllers
             var nearbyDrivers = _store.GetNearby(latitude,longitude,radiusKm).ToList();
             return Ok(nearbyDrivers);
         }
+
+        [HttpGet("getdrivers")]
+        [ClientAuth]
+        public IActionResult GetOnlineDrivers()
+        {
+            var allDrivers = _store.GetAll();
+            return Ok(allDrivers);
+        }
+
     }
 }
