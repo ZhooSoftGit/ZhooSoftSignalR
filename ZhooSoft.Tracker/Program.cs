@@ -3,6 +3,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using ZhooSoft.Tracker.Hubs;
+using ZhooSoft.Tracker.Services;
 using ZhooSoft.Tracker.Store;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -78,6 +79,8 @@ builder.Services.AddSingleton<BookingStateService>();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<DriverLocationStore>();
 builder.Services.AddSingleton<BookingMonitorService>();
+
+builder.Services.AddHttpClient<IMainApiService, MainApiService>();
 
 // 👇 Add CORS for SignalR (important for mobile/web clients)
 builder.Services.AddCors(options =>

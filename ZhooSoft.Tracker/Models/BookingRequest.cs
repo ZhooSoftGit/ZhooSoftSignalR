@@ -26,4 +26,17 @@
         Rental = 1,
         Outstation = 2
     }
+
+    public class AcceptRideRequest
+    {
+        #region Properties
+
+        public int DriverId { get; set; }
+
+        public int RideRequestId { get; set; }
+
+        public int VehicleId { get; set; }
+
+        #endregion
+    }
 }

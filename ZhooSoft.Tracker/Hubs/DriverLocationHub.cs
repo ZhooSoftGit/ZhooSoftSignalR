@@ -95,8 +95,20 @@ namespace ZhooSoft.Tracker.Hubs
 
         public async Task SendBookingRequest(BookingRequestModel booking)
         {
+            if (!IsRequestValid(booking))
+            {
+                var userConn = ConnectionMapping.GetConnection(booking.UserId);
+                if (userConn != null)
+                {
+                    await Clients.Client(userConn).SendAsync("NoDriverAvailable", booking.BoookingRequestId);
+                }
+                return;
+            }
+
             var nearby = _store.GetNearbyIdleDriver(booking.PickupLatitude, booking.PickupLongitude, 5);
-            if (!nearby.Any())
+            var activeDriverIds = RideConnectionMapping.ActiveRides.Values.Select(r => r.DriverId).ToHashSet();
+            var IdleDriver = nearby.Where(d => !activeDriverIds.Contains(d.DriverId)).ToList();
+            if (IdleDriver.Count == 0)
             {
                 var userConn = ConnectionMapping.GetConnection(booking.UserId);
                 if (userConn != null)
@@ -112,7 +124,7 @@ namespace ZhooSoft.Tracker.Hubs
                 UserId = booking.UserId
             };
 
-            var driversToOffer = nearby.Take(5).ToList();
+            var driversToOffer = IdleDriver.Take(5).ToList();
 
             foreach (var driver in driversToOffer)
             {
@@ -129,6 +141,23 @@ namespace ZhooSoft.Tracker.Hubs
 
             // start monitor task
             _ = _bookingMonitorService.MonitorBookingAsync(bookingState);
+        }
+
+        private bool IsRequestValid(BookingRequestModel booking)
+        {
+            bool hasPending = _bookingStateService.PendingBookings.Values
+                                .Any(b => b.UserId == booking.UserId);
+
+            if (hasPending)
+            {
+                return false;
+            }
+
+            // 2. Check in ActiveRides (in-memory/redis)
+            if (RideConnectionMapping.ActiveRides.Values.Any(r => r.UserId == booking.UserId))
+                return false;
+
+            return true;
         }
 
         public async Task RespondToBookingByDriver(int userId, int driverId, int bookingRequestId, string status)
@@ -201,7 +230,7 @@ namespace ZhooSoft.Tracker.Hubs
                         await Clients.Client(userConn).SendAsync("BookingAccepted", new
                         {
                             DriverId = driverId,
-                            Status = "assigned",  
+                            Status = "assigned",
                             state.BookingRequestId,
                             StartOtp = startOtp,
                             EndOtp = endOtp
@@ -222,7 +251,7 @@ namespace ZhooSoft.Tracker.Hubs
                     }
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
 
             }
@@ -328,8 +357,6 @@ namespace ZhooSoft.Tracker.Hubs
                 }
             }
         }
-
-       
 
         public async Task CancelBooking(int bookingRequestId)
         {

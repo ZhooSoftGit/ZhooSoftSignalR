@@ -10,11 +10,13 @@ namespace ZhooSoft.Tracker.Hubs
         private readonly IHubContext<DriverLocationHub> _hubContext;
 
         private BookingStateService _bookingStateService;
+        private IMainApiService _mainApiService;
 
-        public BookingMonitorService(IHubContext<DriverLocationHub> hubContext, BookingStateService stateService)
+        public BookingMonitorService(IHubContext<DriverLocationHub> hubContext, BookingStateService stateService, IMainApiService mainApiService)
         {
             _hubContext = hubContext;
             _bookingStateService = stateService;
+            _mainApiService = mainApiService;
         }
 
         public async Task MonitorBookingAsync(PendingBookingState state)
@@ -29,13 +31,6 @@ namespace ZhooSoft.Tracker.Hubs
                     // timeout
                     await _hubContext.Clients.Client(ConnectionMapping.GetConnection(state.UserId))
                         .SendAsync("NoDriverAvailable", state.BookingRequestId);
-
-                    foreach (var driverId in state.OfferedDrivers)
-                    {
-                        var conn = ConnectionMapping.GetConnection(driverId);
-                        if (conn != null)
-                            await _hubContext.Clients.Client(conn).SendAsync("BookingExpired", state.BookingRequestId);
-                    }
                 }
                 else if (state.AssignmentTcs.Task.IsCompletedSuccessfully)
                 {
@@ -60,6 +55,8 @@ namespace ZhooSoft.Tracker.Hubs
 
                     if (userConn != null)
                     {
+                        var ride = await _mainApiService.CreateRideAsync(state.BookingRequestId, driverId);
+
                         await _hubContext.Clients.Client(userConn).SendAsync("BookingConfirmed", new
                         {
                             DriverId = driverId,
@@ -73,14 +70,6 @@ namespace ZhooSoft.Tracker.Hubs
                     if (driverConn != null)
                     {
                         await _hubContext.Clients.Client(driverConn).SendAsync("BookingConfirmed", state.BookingRequestId);
-                    }
-
-                    // notify other drivers
-                    foreach (var other in state.OfferedDrivers.Where(d => d != driverId))
-                    {
-                        var conn = ConnectionMapping.GetConnection(other);
-                        if (conn != null)
-                            await _hubContext.Clients.Client(conn).SendAsync("BookingExpired", state.BookingRequestId);
                     }
                 }
             }
