@@ -26,50 +26,54 @@ namespace ZhooSoft.Tracker.Hubs
                 var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10), state.TimeoutCts.Token);
                 var finished = await Task.WhenAny(state.AssignmentTcs.Task, timeoutTask);
 
-                if (finished == timeoutTask)
+                var userConn = ConnectionMapping.GetConnection(state.UserId);
+                
+
+                if (finished == timeoutTask && userConn !=null)
                 {
                     // timeout
-                    await _hubContext.Clients.Client(ConnectionMapping.GetConnection(state.UserId))
+                    await _hubContext.Clients.Client(userConn)
                         .SendAsync("NoDriverAvailable", state.BookingRequestId);
                 }
                 else if (state.AssignmentTcs.Task.IsCompletedSuccessfully)
                 {
                     var driverId = state.AssignmentTcs.Task.Result;
-
-                    var userConn = ConnectionMapping.GetConnection(state.UserId);
                     var driverConn = ConnectionMapping.GetConnection(driverId);
-
-                   
-
-                   
 
                     if (userConn != null)
                     {
                         var ride = await _mainApiService.CreateRideAsync(new AcceptRideRequest { DriverId = driverId, RideRequestId = state.BookingRequestId });
 
-                        var rideInfo = new RideConnectionInfo
+                        if (ride != null)
                         {
-                            BookingRequestId = state.BookingRequestId,
-                            UserId = state.UserId,
-                            DriverId = driverId,
-                            StartTripOtp = ride.StartOtp,
-                            EndTripOtp = ride.EndOtp
-                        };
+                            var rideInfo = new RideConnectionInfo
+                            {
+                                BookingRequestId = state.BookingRequestId,
+                                UserId = state.UserId,
+                                DriverId = driverId,
+                                StartTripOtp = ride.StartOtp,
+                                EndTripOtp = ride.EndOtp
+                            };
 
-                        RideConnectionMapping.ActiveRides[state.BookingRequestId] = rideInfo;
+                            RideConnectionMapping.ActiveRides[state.BookingRequestId] = rideInfo;
 
-                        await _hubContext.Clients.Client(userConn).SendAsync("BookingConfirmed", ride);
+                            await _hubContext.Clients.Client(userConn).SendAsync("BookingConfirmed", ride);
 
-                        if (driverConn != null)
+                            if (driverConn != null)
+                            {
+                                await _hubContext.Clients.Client(driverConn).SendAsync("BookingConfirmed", ride);
+                            }
+                        }
+                        else if (driverConn != null)
                         {
-                            await _hubContext.Clients.Client(driverConn).SendAsync("BookingConfirmed", ride);
+                            await _hubContext.Clients.Client(driverConn).SendAsync("BookingCancelled", ride);
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-
+                //log the exception
             }
             finally
             {
