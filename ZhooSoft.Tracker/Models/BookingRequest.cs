@@ -35,7 +35,7 @@
 
         public int RideRequestId { get; set; }
 
-        public int VehicleId { get; set; }
+        public int? VehicleId { get; set; }
 
         #endregion
     }

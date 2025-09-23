@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
-using System.Collections.Concurrent;
+using ZhooSoft.Tracker.CustomEventBus;
 using ZhooSoft.Tracker.Models;
 using ZhooSoft.Tracker.Services;
 using ZhooSoft.Tracker.Store;
@@ -13,14 +13,14 @@ namespace ZhooSoft.Tracker.Hubs
         private readonly DriverLocationStore _store;
         private BookingMonitorService _bookingMonitorService;
         private BookingStateService _bookingStateService;
+        private IEventBus _eventBus;
 
-        private static ConcurrentDictionary<int, PendingBookingState> PendingBookings = new();
-
-        public DriverLocationHub(DriverLocationStore store, BookingMonitorService bookingMonitorService, BookingStateService stateService)
+        public DriverLocationHub(DriverLocationStore store, BookingMonitorService bookingMonitorService, BookingStateService stateService, IEventBus eventBus)
         {
             _store = store;
             _bookingMonitorService = bookingMonitorService;
             _bookingStateService = stateService;
+            _eventBus = eventBus;
         }
 
         public override async Task OnConnectedAsync()
@@ -54,7 +54,7 @@ namespace ZhooSoft.Tracker.Hubs
             return null;
         }
 
-        public Task UpdateDriverLocation(DriverLocation location)
+        public async Task UpdateDriverLocation(DriverLocation location)
         {
             var driverId = GetUserId();
             if (driverId != null)
@@ -62,36 +62,16 @@ namespace ZhooSoft.Tracker.Hubs
                 location.DriverId = driverId.Value;
                 _store.Update(driverId.Value, location);
 
-                // Send location to user if active ride exists
-                var entry = RideConnectionMapping.ActiveRides
-                    .FirstOrDefault(kvp => kvp.Value.DriverId == driverId.Value);
-
-                if (entry.Value != null)
-                {
-                    var rideInfo = entry.Value;
-                    var userConn = ConnectionMapping.GetConnection(rideInfo.UserId);
-                    if (userConn != null)
-                    {
-                        Clients.Client(userConn).SendAsync("ReceiveDriverLocation", new DriverLocation
-                        {
-                            DriverId = driverId.Value,
-                            Longitude = location.Longitude,
-                            Latitude = location.Latitude
-                        });
-                    }
-                }
+                await _eventBus.PublishAsync(new DriverLocationUpdatedEvent(driverId.Value, location.Latitude, location.Longitude));
             }
-            return Task.CompletedTask;
         }
 
-        public async Task GetNearbyDrivers(double lat, double lng)
+        public Task<List<DriverLocation>> GetNearbyDrivers(double lat, double lng)
         {
             var result = _store.GetNearby(lat, lng, 5); // 5 KM radius
-            if (result.Count > 0)
-            {
-                await Clients.Caller.SendAsync("ReceiveNearbyDrivers", result);
-            }
+            return Task.FromResult(result);
         }
+
 
         public async Task SendBookingRequest(BookingRequestModel booking)
         {
@@ -181,84 +161,6 @@ namespace ZhooSoft.Tracker.Hubs
             else if (bookingState.RespondedDrivers.Count >= 5)
             {
                 bookingState.AssignmentTcs.TrySetCanceled();
-            }
-        }
-
-        private async Task MonitorBookingAsync(PendingBookingState state)
-        {
-            try
-            {
-                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10), state.TimeoutCts.Token);
-                var finished = await Task.WhenAny(state.AssignmentTcs.Task, timeoutTask);
-
-                if (finished == timeoutTask)
-                {
-                    // timeout
-                    await Clients.Client(ConnectionMapping.GetConnection(state.UserId))
-                        .SendAsync("NoDriverAvailable", state.BookingRequestId);
-
-                    foreach (var driverId in state.OfferedDrivers)
-                    {
-                        var conn = ConnectionMapping.GetConnection(driverId);
-                        if (conn != null)
-                            await Clients.Client(conn).SendAsync("BookingExpired", state.BookingRequestId);
-                    }
-                }
-                else if (state.AssignmentTcs.Task.IsCompletedSuccessfully)
-                {
-                    var driverId = state.AssignmentTcs.Task.Result;
-
-                    var userConn = ConnectionMapping.GetConnection(state.UserId);
-                    var driverConn = ConnectionMapping.GetConnection(driverId);
-
-                    var startOtp = "1234"; // for testing
-                    var endOtp = "2222";
-
-                    var rideInfo = new RideConnectionInfo
-                    {
-                        BookingRequestId = state.BookingRequestId,
-                        UserId = state.UserId,
-                        DriverId = driverId,
-                        StartTripOtp = startOtp,
-                        EndTripOtp = endOtp
-                    };
-
-                    RideConnectionMapping.ActiveRides[state.BookingRequestId] = rideInfo;
-
-                    if (userConn != null)
-                    {
-                        await Clients.Client(userConn).SendAsync("BookingAccepted", new
-                        {
-                            DriverId = driverId,
-                            Status = "assigned",
-                            state.BookingRequestId,
-                            StartOtp = startOtp,
-                            EndOtp = endOtp
-                        });
-                    }
-
-                    if (driverConn != null)
-                    {
-                        await Clients.Client(driverConn).SendAsync("BookingConfirmed", state.BookingRequestId);
-                    }
-
-                    // notify other drivers
-                    foreach (var other in state.OfferedDrivers.Where(d => d != driverId))
-                    {
-                        var conn = ConnectionMapping.GetConnection(other);
-                        if (conn != null)
-                            await Clients.Client(conn).SendAsync("BookingExpired", state.BookingRequestId);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-
-            }
-            finally
-            {
-                state.TimeoutCts.Cancel();
-                PendingBookings.TryRemove(state.BookingRequestId, out _);
             }
         }
 

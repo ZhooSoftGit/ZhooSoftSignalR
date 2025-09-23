@@ -13,23 +13,30 @@ namespace ZhooSoft.Tracker.Services
             _client.DefaultRequestHeaders.Add("X-Service-Auth", config["ServiceAuth:SharedSecret"]!); // for now
         }
 
-        public async Task<RideTripDto> CreateRideAsync(int rideRequestId, int driverId)
+        public async Task<RideTripDto> CreateRideAsync(AcceptRideRequest rideRequest)
         {
-            var response = await _client.PostAsJsonAsync("api/taxi/accept-ride", new AcceptRideRequest { DriverId = driverId, RideRequestId = rideRequestId, VehicleId = 1 });
-            response.EnsureSuccessStatusCode();
+            try
+            {
+                var response = await _client.PostAsJsonAsync("api/taxi/accept-ride", rideRequest);
+                response.EnsureSuccessStatusCode();
 
-            return await response.Content.ReadFromJsonAsync<RideTripDto>();
+                return await response.Content.ReadFromJsonAsync<RideTripDto>();
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
         }
 
         public async Task<bool> StartRideAsync(int rideId, string otp)
         {
-            var response = await _client.PostAsJsonAsync($"/api/rides/{rideId}/start", new { otp });
+            var response = await _client.PostAsJsonAsync($"api/rides/{rideId}/start", new { otp });
             return response.IsSuccessStatusCode;
         }
 
         public async Task<bool> EndRideAsync(int rideId, string otp)
         {
-            var response = await _client.PostAsJsonAsync($"/api/rides/{rideId}/end", new { otp });
+            var response = await _client.PostAsJsonAsync($"api/rides/{rideId}/end", new { otp });
             return response.IsSuccessStatusCode;
         }
     }

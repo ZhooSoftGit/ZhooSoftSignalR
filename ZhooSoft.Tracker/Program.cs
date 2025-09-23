@@ -2,6 +2,7 @@
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using ZhooSoft.Tracker.CustomEventBus;
 using ZhooSoft.Tracker.Hubs;
 using ZhooSoft.Tracker.Services;
 using ZhooSoft.Tracker.Store;
@@ -44,6 +45,7 @@ builder.Services.AddControllers();
 //    });
 
 // Swagger
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -80,6 +82,16 @@ builder.Services.AddSignalR();
 builder.Services.AddSingleton<DriverLocationStore>();
 builder.Services.AddSingleton<BookingMonitorService>();
 
+// Custom event Bus
+// Today
+builder.Services.AddSingleton<IEventBus, InMemoryEventBus>();
+
+// Tomorrow
+//builder.Services.AddSingleton<IEventBus>(sp =>
+//    new AzureServiceBusEventBus("<AzureSB-ConnectionString>"));
+
+builder.Services.AddScoped<DriverLocationUpdatedHandler>();
+
 builder.Services.AddHttpClient<IMainApiService, MainApiService>();
 
 // 👇 Add CORS for SignalR (important for mobile/web clients)
@@ -96,6 +108,9 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+var eventBus = app.Services.GetRequiredService<IEventBus>();
+eventBus.Subscribe<DriverLocationUpdatedEvent, DriverLocationUpdatedHandler>();
 
 app.UseHttpsRedirection();
 
