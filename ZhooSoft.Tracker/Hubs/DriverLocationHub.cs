@@ -14,13 +14,16 @@ namespace ZhooSoft.Tracker.Hubs
         private BookingMonitorService _bookingMonitorService;
         private BookingStateService _bookingStateService;
         private IEventBus _eventBus;
+        private IMainApiService _mainApiService;
 
-        public DriverLocationHub(DriverLocationStore store, BookingMonitorService bookingMonitorService, BookingStateService stateService, IEventBus eventBus)
+        public DriverLocationHub(DriverLocationStore store, BookingMonitorService bookingMonitorService,
+            BookingStateService stateService, IEventBus eventBus, IMainApiService mainApiService)
         {
             _store = store;
             _bookingMonitorService = bookingMonitorService;
             _bookingStateService = stateService;
             _eventBus = eventBus;
+            _mainApiService = mainApiService;
         }
 
         public override async Task OnConnectedAsync()
@@ -80,7 +83,7 @@ namespace ZhooSoft.Tracker.Hubs
                 var userConn = ConnectionMapping.GetConnection(booking.UserId);
                 if (userConn != null)
                 {
-                    await Clients.Client(userConn).SendAsync("NoDriverAvailable", booking.BoookingRequestId);
+                    await Clients.Client(userConn).SendAsync("NoDriverAvailable", booking.BookingRequestId);
                 }
                 return;
             }
@@ -93,14 +96,15 @@ namespace ZhooSoft.Tracker.Hubs
                 var userConn = ConnectionMapping.GetConnection(booking.UserId);
                 if (userConn != null)
                 {
-                    await Clients.Client(userConn).SendAsync("NoDriverAvailable", booking.BoookingRequestId);
+                    _ = _mainApiService.UpdateBookingStatus(new UpdateTripStatusDto { RideRequestId = booking.BookingRequestId, RideStatus = RideStatus.NoDrivers });
+                    await Clients.Client(userConn).SendAsync("NoDriverAvailable", booking.BookingRequestId);
                 }
                 return;
             }
 
             var bookingState = new PendingBookingState
             {
-                BookingRequestId = booking.BoookingRequestId, // int
+                BookingRequestId = booking.BookingRequestId, // int
                 UserId = booking.UserId
             };
 
@@ -262,6 +266,16 @@ namespace ZhooSoft.Tracker.Hubs
 
         public async Task CancelBooking(int bookingRequestId)
         {
+            await CancelRideBooking(bookingRequestId);
+        }
+
+        public async Task CancelTripNotification(int bookingRequestId)
+        {
+            await CancelRideBooking(bookingRequestId);
+        }
+
+        private async Task CancelRideBooking(int bookingRequestId)
+        {
             if (_bookingStateService.PendingBookings.TryRemove(bookingRequestId, out var state))
             {
                 // Cancel timeout task
@@ -285,11 +299,7 @@ namespace ZhooSoft.Tracker.Hubs
                     await Clients.Client(userConn)
                         .SendAsync("BookingCancelled", bookingRequestId);
             }
-        }
-
-        public async Task CancelTripNotification(int bookingRequestId)
-        {
-            if (RideConnectionMapping.ActiveRides.TryGetValue(bookingRequestId, out var ride))
+            else if (RideConnectionMapping.ActiveRides.TryGetValue(bookingRequestId, out var ride))
             {
                 var userConn = ConnectionMapping.GetConnection(ride.UserId);
                 if (userConn != null)
@@ -298,9 +308,9 @@ namespace ZhooSoft.Tracker.Hubs
                 var driverConn = ConnectionMapping.GetConnection(ride.DriverId);
                 if (driverConn != null)
                     await Clients.Client(driverConn).SendAsync("TripCancelled", bookingRequestId);
-            }
 
-            RideConnectionMapping.ActiveRides.TryRemove(bookingRequestId, out _);
+                RideConnectionMapping.ActiveRides.TryRemove(bookingRequestId, out _);
+            }
         }
 
 

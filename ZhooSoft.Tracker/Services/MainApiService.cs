@@ -28,6 +28,22 @@ namespace ZhooSoft.Tracker.Services
             }
         }
 
+        public async Task<bool> UpdateBookingStatus(UpdateTripStatusDto rideRequest)
+        {
+            try
+            {
+                var response = await _client.PostAsJsonAsync("api/taxi/update-booking", rideRequest);
+                response.EnsureSuccessStatusCode();
+
+                return await response.Content.ReadFromJsonAsync<bool>();
+            }
+            catch (Exception ex)
+            {
+                //log error
+                return false;
+            }
+        }
+
         public async Task<bool> StartRideAsync(int rideId, string otp)
         {
             var response = await _client.PostAsJsonAsync($"api/rides/{rideId}/start", new { otp });

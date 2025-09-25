@@ -27,10 +27,12 @@ namespace ZhooSoft.Tracker.Hubs
                 var finished = await Task.WhenAny(state.AssignmentTcs.Task, timeoutTask);
 
                 var userConn = ConnectionMapping.GetConnection(state.UserId);
-                
 
-                if (finished == timeoutTask && userConn !=null)
+
+                if (finished == timeoutTask && userConn != null)
                 {
+                    _ = _mainApiService.UpdateBookingStatus(new UpdateTripStatusDto { RideRequestId = state.BookingRequestId, RideStatus = RideStatus.NoDrivers });
+
                     // timeout
                     await _hubContext.Clients.Client(userConn)
                         .SendAsync("NoDriverAvailable", state.BookingRequestId);
