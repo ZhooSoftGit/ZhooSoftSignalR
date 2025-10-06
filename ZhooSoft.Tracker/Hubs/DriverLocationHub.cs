@@ -7,7 +7,7 @@ using ZhooSoft.Tracker.Store;
 
 namespace ZhooSoft.Tracker.Hubs
 {
-    [AllowAnonymous]
+    [Authorize]
     public class DriverLocationHub : Hub
     {
         private readonly DriverLocationStore _store;

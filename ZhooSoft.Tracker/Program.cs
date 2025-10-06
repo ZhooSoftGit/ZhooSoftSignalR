@@ -13,36 +13,36 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 
 // Authentication & JWT
-//builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-//    .AddJwtBearer(options =>
-//    {
-//        var jwt = builder.Configuration.GetSection("JwtSettings");
-//        options.TokenValidationParameters = new TokenValidationParameters
-//        {
-//            ValidateIssuer = true,
-//            ValidIssuer = jwt["Issuer"],
-//            ValidateAudience = true,
-//            ValidAudience = jwt["Audience"],
-//            ValidateLifetime = true,
-//            ValidateIssuerSigningKey = true,
-//            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Secret"]))
-//        };
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        var jwt = builder.Configuration.GetSection("JwtSettings");
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwt["Issuer"],
+            ValidateAudience = true,
+            ValidAudience = jwt["Audience"],
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Secret"]))
+        };
 
-//        // 👇 Required so SignalR can authenticate via access_token query
-//        options.Events = new JwtBearerEvents
-//        {
-//            OnMessageReceived = context =>
-//            {
-//                var accessToken = context.Request.Query["access_token"];
-//                var path = context.HttpContext.Request.Path;
+        // 👇 Required so SignalR can authenticate via access_token query
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
 
-//                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
-//                    context.Token = accessToken;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                    context.Token = accessToken;
 
-//                return Task.CompletedTask;
-//            }
-//        };
-//    });
+                return Task.CompletedTask;
+            }
+        };
+    });
 
 // Swagger
 

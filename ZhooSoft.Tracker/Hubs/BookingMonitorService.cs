@@ -31,6 +31,11 @@ namespace ZhooSoft.Tracker.Hubs
 
                 if (finished == timeoutTask && userConn != null)
                 {
+                    if (timeoutTask.IsCanceled)
+                    {
+                        return;
+                    }
+
                     _ = _mainApiService.UpdateBookingStatus(new UpdateTripStatusDto { RideRequestId = state.BookingRequestId, RideStatus = RideStatus.NoDrivers });
 
                     // timeout
