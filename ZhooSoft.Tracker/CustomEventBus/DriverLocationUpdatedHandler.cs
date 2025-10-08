@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using ZhooSoft.Tracker.Hubs;
+using ZhooSoft.Tracker.Models;
 using ZhooSoft.Tracker.Services;
 using ZhooSoft.Tracker.Store;
 
@@ -26,7 +27,7 @@ namespace ZhooSoft.Tracker.CustomEventBus
                 {
                     await _hubContext.Clients.Client(userConn).SendAsync(
                         "ReceiveDriverLocation",
-                        new { @event.DriverId, @event.Latitude, @event.Longitude });
+                        new DriverLocation { DriverId = @event.DriverId, Latitude = @event.Latitude, Longitude = @event.Longitude });
                 }
             }
         }
