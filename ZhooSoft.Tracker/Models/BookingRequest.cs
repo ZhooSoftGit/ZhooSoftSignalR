@@ -24,39 +24,43 @@
         #endregion
     }
 
-    public class BookingRequestModel
+    public class RideRequestDto
     {
         #region Properties
 
-        public int BookingRequestId { get; set; }
+        public int RideRequestId { get; set; }
 
-        public RideTypeEnum BookingType { get; set; }
+        public DateTime? DropDateTime { get; set; }
 
-        public string DistanceAndPayment { get; set; }
+        public double DropOffLatitude { get; set; }
 
-        public string DriverId { get; set; }
+        public string DropOffLocation { get; set; } = null!;
 
-        public string DropAddress { get; set; }
+        public double DropOffLongitude { get; set; }
 
-        public double DropLatitude { get; set; }
+        public double? EstimatedDistance { get; set; }
 
-        public double DropLongitude { get; set; }
+        public int? EstimatedDuration { get; set; }
 
-        public string Fare { get; set; }
+        public double? EstimatedFare { get; set; }
 
-        public string PickupAddress { get; set; }
+        public DateTime PickupDateTime { get; set; }
 
-        public double PickupLatitude { get; set; }
+        public double PickUpLatitude { get; set; }
 
-        public double PickupLongitude { get; set; }
+        public string PickUpLocation { get; set; } = null!;
 
-        public string PickupTime { get; set; }
+        public double PickUpLongitude { get; set; }
 
-        public int RemainingBids { get; set; }
+        public int? RentalHours { get; set; }
+
+        public RideStatus RideStatus { get; set; }
+
+        public RideTypeEnum RideType { get; set; }
 
         public int UserId { get; set; }
 
-        public string? UserName { get; set; }
+        public VehicleTypeEnum VehicleType { get; set; }
 
         #endregion
     }

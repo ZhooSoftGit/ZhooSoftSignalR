@@ -5,7 +5,7 @@
         #region Properties
 
         // Booking Info
-        public int BookingRequestId { get; set; }
+        public int RideRequestId { get; set; }
         public int UserId { get; set; }
         public string? PickupAddress { get; set; }
         public double? PickupLatitude { get; set; }
@@ -13,8 +13,9 @@
         public string? DropAddress { get; set; }
         public double? DropLatitude { get; set; }
         public double? DropLongitude { get; set; }
-        public double? Fare { get; set; }
-        public double? Distance { get; set; }
+        public double? EstimatedDistance { get; set; }
+        public int? EstimatedDuration { get; set; }
+        public double? EstimatedFare { get; set; }
         public RideTypeEnum RideType { get; set; }
 
         // Driver Info

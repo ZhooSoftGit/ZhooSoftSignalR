@@ -76,19 +76,19 @@ namespace ZhooSoft.Tracker.Hubs
         }
 
 
-        public async Task SendBookingRequest(BookingRequestModel booking)
+        public async Task SendBookingRequest(RideRequestDto booking)
         {
             if (!IsRequestValid(booking))
             {
                 var userConn = ConnectionMapping.GetConnection(booking.UserId);
                 if (userConn != null)
                 {
-                    await Clients.Client(userConn).SendAsync("NoDriverAvailable", booking.BookingRequestId);
+                    await Clients.Client(userConn).SendAsync("NoDriverAvailable", booking.RideRequestId);
                 }
                 return;
             }
 
-            var nearby = _store.GetNearbyIdleDriver(booking.PickupLatitude, booking.PickupLongitude, 5);
+            var nearby = _store.GetNearbyIdleDriver(booking.PickUpLatitude, booking.PickUpLongitude, 5);
             var activeDriverIds = RideConnectionMapping.ActiveRides.Values.Select(r => r.DriverId).ToHashSet();
             var IdleDriver = nearby.Where(d => !activeDriverIds.Contains(d.DriverId)).ToList();
             if (IdleDriver.Count == 0)
@@ -96,15 +96,15 @@ namespace ZhooSoft.Tracker.Hubs
                 var userConn = ConnectionMapping.GetConnection(booking.UserId);
                 if (userConn != null)
                 {
-                    _ = _mainApiService.UpdateBookingStatus(new UpdateTripStatusDto { RideRequestId = booking.BookingRequestId, RideStatus = RideStatus.NoDrivers });
-                    await Clients.Client(userConn).SendAsync("NoDriverAvailable", booking.BookingRequestId);
+                    _ = _mainApiService.UpdateBookingStatus(new UpdateTripStatusDto { RideRequestId = booking.RideRequestId, RideStatus = RideStatus.NoDrivers });
+                    await Clients.Client(userConn).SendAsync("NoDriverAvailable", booking.RideRequestId);
                 }
                 return;
             }
 
             var bookingState = new PendingBookingState
             {
-                BookingRequestId = booking.BookingRequestId, // int
+                RideRequestId = booking.RideRequestId, // int
                 UserId = booking.UserId
             };
 
@@ -121,13 +121,13 @@ namespace ZhooSoft.Tracker.Hubs
                 }
             }
 
-            _bookingStateService.PendingBookings[bookingState.BookingRequestId] = bookingState;
+            _bookingStateService.PendingBookings[bookingState.RideRequestId] = bookingState;
 
             // start monitor task
             _ = _bookingMonitorService.MonitorBookingAsync(bookingState);
         }
 
-        private bool IsRequestValid(BookingRequestModel booking)
+        private bool IsRequestValid(RideRequestDto booking)
         {
             bool hasPending = _bookingStateService.PendingBookings.Values
                                 .Any(b => b.UserId == booking.UserId);
@@ -144,11 +144,11 @@ namespace ZhooSoft.Tracker.Hubs
             return true;
         }
 
-        public async Task RespondToBookingByDriver(int userId, int driverId, int bookingRequestId, string status)
+        public async Task RespondToBookingByDriver(int userId, int driverId, int rideRequestId, string status)
         {
-            if (!_bookingStateService.PendingBookings.TryGetValue(bookingRequestId, out var bookingState))
+            if (!_bookingStateService.PendingBookings.TryGetValue(rideRequestId, out var bookingState))
             {
-                await Clients.Caller.SendAsync("BookingExpired", bookingRequestId);
+                await Clients.Caller.SendAsync("BookingExpired", rideRequestId);
                 return;
             }
 
@@ -168,19 +168,19 @@ namespace ZhooSoft.Tracker.Hubs
             }
         }
 
-        public async Task<bool> StartRide(int bookingRequestId, string enteredOtp)
+        public async Task<bool> StartRide(int rideRequestId, string enteredOtp)
         {
-            if (RideConnectionMapping.ActiveRides.TryGetValue(bookingRequestId, out var ride))
+            if (RideConnectionMapping.ActiveRides.TryGetValue(rideRequestId, out var ride))
             {
                 if (enteredOtp == ride.StartTripOtp)
                 {
                     var userConn = ConnectionMapping.GetConnection(ride.UserId);
                     if (userConn != null)
-                        await Clients.Client(userConn).SendAsync("TripStarted", bookingRequestId);
+                        await Clients.Client(userConn).SendAsync("TripStarted", rideRequestId);
 
                     var driverConn = ConnectionMapping.GetConnection(ride.DriverId);
                     if (driverConn != null)
-                        await Clients.Client(driverConn).SendAsync("TripStarted", bookingRequestId);
+                        await Clients.Client(driverConn).SendAsync("TripStarted", rideRequestId);
 
                     return true;
                 }
@@ -197,22 +197,22 @@ namespace ZhooSoft.Tracker.Hubs
             return false;
         }
 
-        public async Task<bool> EndRide(int bookingRequestId, string enteredOtp)
+        public async Task<bool> EndRide(int rideRequestId, string enteredOtp)
         {
-            if (RideConnectionMapping.ActiveRides.TryGetValue(bookingRequestId, out var ride))
+            if (RideConnectionMapping.ActiveRides.TryGetValue(rideRequestId, out var ride))
             {
                 if (enteredOtp == ride.EndTripOtp)
                 {
                     var userConn = ConnectionMapping.GetConnection(ride.UserId);
                     if (userConn != null)
-                        await Clients.Client(userConn).SendAsync("TripCompleted", bookingRequestId);
+                        await Clients.Client(userConn).SendAsync("TripCompleted", rideRequestId);
 
                     var driverConn = ConnectionMapping.GetConnection(ride.DriverId);
                     if (driverConn != null)
-                        await Clients.Client(driverConn).SendAsync("TripCompleted", bookingRequestId);
+                        await Clients.Client(driverConn).SendAsync("TripCompleted", rideRequestId);
 
                     // Remove from active rides after completion
-                    RideConnectionMapping.ActiveRides.TryRemove(bookingRequestId, out _);
+                    RideConnectionMapping.ActiveRides.TryRemove(rideRequestId, out _);
 
                     return true;
                 }
@@ -240,43 +240,43 @@ namespace ZhooSoft.Tracker.Hubs
             }
         }
 
-        public async Task StartPickupNotification(int bookingRequestId)
+        public async Task StartPickupNotification(int rideRequestId)
         {
-            if (RideConnectionMapping.ActiveRides.TryGetValue(bookingRequestId, out var rideInfo))
+            if (RideConnectionMapping.ActiveRides.TryGetValue(rideRequestId, out var rideInfo))
             {
                 var userConn = ConnectionMapping.GetConnection(rideInfo.UserId);
                 if (userConn != null)
                 {
-                    await Clients.Client(userConn).SendAsync("StartPickupNotification", bookingRequestId);
+                    await Clients.Client(userConn).SendAsync("StartPickupNotification", rideRequestId);
                 }
             }
         }
 
-        public async Task PickupReachedNotification(int bookingRequestId)
+        public async Task PickupReachedNotification(int rideRequestId)
         {
-            if (RideConnectionMapping.ActiveRides.TryGetValue(bookingRequestId, out var participants))
+            if (RideConnectionMapping.ActiveRides.TryGetValue(rideRequestId, out var participants))
             {
                 var userConn = ConnectionMapping.GetConnection(participants.UserId);
                 if (userConn != null)
                 {
-                    await Clients.Client(userConn).SendAsync("PickupReachedNotification", bookingRequestId);
+                    await Clients.Client(userConn).SendAsync("PickupReachedNotification", rideRequestId);
                 }
             }
         }
 
-        public async Task CancelBooking(int bookingRequestId)
+        public async Task CancelBooking(int rideRequestId)
         {
-            await CancelRideBooking(bookingRequestId);
+            await CancelRideBooking(rideRequestId);
         }
 
-        public async Task CancelTripNotification(int bookingRequestId)
+        public async Task CancelTripNotification(int rideRequestId)
         {
-            await CancelRideBooking(bookingRequestId);
+            await CancelRideBooking(rideRequestId);
         }
 
-        private async Task CancelRideBooking(int bookingRequestId)
+        private async Task CancelRideBooking(int rideRequestId)
         {
-            if (_bookingStateService.PendingBookings.TryRemove(bookingRequestId, out var state))
+            if (_bookingStateService.PendingBookings.TryRemove(rideRequestId, out var state))
             {
                 // Cancel timeout task
                 state.TimeoutCts.Cancel();
@@ -290,37 +290,37 @@ namespace ZhooSoft.Tracker.Hubs
                     var conn = ConnectionMapping.GetConnection(driverId);
                     if (conn != null)
                         await Clients.Client(conn)
-                            .SendAsync("BookingCancelled", bookingRequestId);
+                            .SendAsync("BookingCancelled", rideRequestId);
                 }
 
                 // Notify user (optional confirmation)
                 var userConn = ConnectionMapping.GetConnection(state.UserId);
                 if (userConn != null)
                     await Clients.Client(userConn)
-                        .SendAsync("BookingCancelled", bookingRequestId);
+                        .SendAsync("BookingCancelled", rideRequestId);
             }
-            else if (RideConnectionMapping.ActiveRides.TryGetValue(bookingRequestId, out var ride))
+            else if (RideConnectionMapping.ActiveRides.TryGetValue(rideRequestId, out var ride))
             {
                 var userConn = ConnectionMapping.GetConnection(ride.UserId);
                 if (userConn != null)
-                    await Clients.Client(userConn).SendAsync("TripCancelled", bookingRequestId);
+                    await Clients.Client(userConn).SendAsync("TripCancelled", rideRequestId);
 
                 var driverConn = ConnectionMapping.GetConnection(ride.DriverId);
                 if (driverConn != null)
-                    await Clients.Client(driverConn).SendAsync("TripCancelled", bookingRequestId);
+                    await Clients.Client(driverConn).SendAsync("TripCancelled", rideRequestId);
 
-                RideConnectionMapping.ActiveRides.TryRemove(bookingRequestId, out _);
+                RideConnectionMapping.ActiveRides.TryRemove(rideRequestId, out _);
             }
         }
 
 
-        public async Task SendRideMessage(int bookingRequestId, string message, string senderType, int senderId)
+        public async Task SendRideMessage(int rideRequestId, string message, string senderType, int senderId)
         {
-            if (RideConnectionMapping.ActiveRides.TryGetValue(bookingRequestId, out var ride))
+            if (RideConnectionMapping.ActiveRides.TryGetValue(rideRequestId, out var ride))
             {
                 var rideMessage = new RideMessage
                 {
-                    BookingRequestId = bookingRequestId,
+                    RideRequestId = rideRequestId,
                     SenderId = senderId,
                     SenderType = senderType,
                     Message = message

@@ -8,7 +8,7 @@
 
         public TaskCompletionSource<int> AssignmentTcs { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public int BookingRequestId { get; set; }
+        public int RideRequestId { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

@@ -36,11 +36,11 @@ namespace ZhooSoft.Tracker.Hubs
                         return;
                     }
 
-                    _ = _mainApiService.UpdateBookingStatus(new UpdateTripStatusDto { RideRequestId = state.BookingRequestId, RideStatus = RideStatus.NoDrivers });
+                    _ = _mainApiService.UpdateBookingStatus(new UpdateTripStatusDto { RideRequestId = state.RideRequestId, RideStatus = RideStatus.NoDrivers });
 
                     // timeout
                     await _hubContext.Clients.Client(userConn)
-                        .SendAsync("NoDriverAvailable", state.BookingRequestId);
+                        .SendAsync("NoDriverAvailable", state.RideRequestId);
                 }
                 else if (state.AssignmentTcs.Task.IsCompletedSuccessfully)
                 {
@@ -49,20 +49,20 @@ namespace ZhooSoft.Tracker.Hubs
 
                     if (userConn != null)
                     {
-                        var ride = await _mainApiService.CreateRideAsync(new AcceptRideRequest { DriverId = driverId, RideRequestId = state.BookingRequestId });
+                        var ride = await _mainApiService.CreateRideAsync(new AcceptRideRequest { DriverId = driverId, RideRequestId = state.RideRequestId });
 
                         if (ride != null)
                         {
                             var rideInfo = new RideConnectionInfo
                             {
-                                BookingRequestId = state.BookingRequestId,
+                                RideRequestId = state.RideRequestId,
                                 UserId = state.UserId,
                                 DriverId = driverId,
                                 StartTripOtp = ride.StartOtp,
                                 EndTripOtp = ride.EndOtp
                             };
 
-                            RideConnectionMapping.ActiveRides[state.BookingRequestId] = rideInfo;
+                            RideConnectionMapping.ActiveRides[state.RideRequestId] = rideInfo;
 
                             await _hubContext.Clients.Client(userConn).SendAsync("BookingConfirmed", ride);
 
@@ -85,7 +85,7 @@ namespace ZhooSoft.Tracker.Hubs
             finally
             {
                 state.TimeoutCts.Cancel();
-                _bookingStateService.PendingBookings.TryRemove(state.BookingRequestId, out _);
+                _bookingStateService.PendingBookings.TryRemove(state.RideRequestId, out _);
             }
         }
     }

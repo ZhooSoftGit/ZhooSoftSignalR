@@ -2,7 +2,7 @@
 {
     public class RideConnectionInfo
     {
-        public int BookingRequestId { get; set; }
+        public int RideRequestId { get; set; }
         public int UserId { get; set; }
         public int DriverId { get; set; }
 

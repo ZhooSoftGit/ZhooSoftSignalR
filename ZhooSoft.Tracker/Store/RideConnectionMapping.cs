@@ -5,7 +5,7 @@ namespace ZhooSoft.Tracker.Store
 {
     public static class RideConnectionMapping
     {
-        // Use BookingRequestId as the key
+        // Use RideRequestId as the key
         public static ConcurrentDictionary<int, RideConnectionInfo> ActiveRides = new();
     }
 }

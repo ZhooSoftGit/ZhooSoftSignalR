@@ -2,7 +2,7 @@
 {
     public class RideMessage
     {
-        public int BookingRequestId { get; set; }
+        public int RideRequestId { get; set; }
         public int SenderId { get; set; }
         public string SenderType { get; set; } // "user" or "driver"
         public string Message { get; set; }
