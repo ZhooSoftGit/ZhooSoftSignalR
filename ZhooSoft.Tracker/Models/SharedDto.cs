@@ -1,0 +1,120 @@
+﻿namespace ZhooSoft.Tracker.Models
+{
+    public class RideRequestModel
+    {
+        #region Properties
+
+        public DateTime? DropoffDateTime { get; set; }
+
+        public double DropoffLatitude { get; set; }
+
+        public string DropoffLocation { get; set; } = null!;
+
+        public double DropoffLongitude { get; set; }
+
+        public double? EstimatedDistance { get; set; }
+
+        public int? EstimatedDuration { get; set; }
+
+        public double? EstimatedFare { get; set; }
+
+        public DateTime PickupDateTime { get; set; }
+
+        public double PickupLatitude { get; set; }
+
+        public string PickupLocation { get; set; } = null!;
+
+        public double PickupLongitude { get; set; }
+
+        public int? RentalHours { get; set; }
+
+        public RideStatus RideStatus { get; set; }
+
+        public RideTypeEnum RideType { get; set; }
+
+        public int UserId { get; set; }
+
+        public VehicleTypeEnum VehicleType { get; set; }
+
+        #endregion
+    }
+
+    public class RideTripDto
+    {
+        #region Properties
+
+        // Booking Info
+        public int RideRequestId { get; set; }
+        public int UserId { get; set; }
+        public string? PickupLocation { get; set; }
+        public double? PickupLatitude { get; set; }
+        public double? PickupLongitude { get; set; }
+        public string? DropoffLocation { get; set; }
+        public double? DropoffLatitude { get; set; }
+        public double? DropoffLongitude { get; set; }
+        public double? EstimatedDistance { get; set; }
+        public int? EstimatedDuration { get; set; }
+        public double? EstimatedFare { get; set; }
+        public RideTypeEnum RideType { get; set; }
+
+        // Driver Info
+        public int? DriverId { get; set; }
+        public string? DriverName { get; set; }
+        public string? DriverPhoto { get; set; }
+        public string? DriverPhone { get; set; }
+
+        // Vehicle Info
+        public int? VehicleId { get; set; }
+        public string? VehicleNumber { get; set; }
+
+        // Trip Status
+        public RideStatus CurrentStatus { get; set; } = RideStatus.Requested;
+        public DateTime? CreatedAt { get; set; } = DateTime.Now;
+
+        // OTP Info
+        public string? StartOtp { get; set; }
+        public string? EndOtp { get; set; }
+        #endregion
+    }
+
+    public class RideRequestDto
+    {
+        #region Properties
+
+        public int RideRequestId { get; set; }
+
+        public DateTime? DropoffDateTime { get; set; }
+
+        public double DropoffLatitude { get; set; }
+
+        public string DropoffLocation { get; set; } = null!;
+
+        public double DropoffLongitude { get; set; }
+
+        public double? EstimatedDistance { get; set; }
+
+        public int? EstimatedDuration { get; set; }
+
+        public double? EstimatedFare { get; set; }
+
+        public DateTime PickupDateTime { get; set; }
+
+        public double PickupLatitude { get; set; }
+
+        public string PickupLocation { get; set; } = null!;
+
+        public double PickupLongitude { get; set; }
+
+        public int? RentalHours { get; set; }
+
+        public RideStatus RideStatus { get; set; }
+
+        public RideTypeEnum RideType { get; set; }
+
+        public int UserId { get; set; }
+
+        public VehicleTypeEnum VehicleType { get; set; }
+
+        #endregion
+    }
+}

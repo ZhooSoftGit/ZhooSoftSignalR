@@ -31,7 +31,7 @@ namespace ZhooSoft.Tracker.Hubs
 
                 if (finished == timeoutTask && userConn != null)
                 {
-                    if (timeoutTask.IsCanceled)
+                    if (timeoutTask.IsCanceled || state.AssignmentTcs.Task.IsCanceled)
                     {
                         return;
                     }
