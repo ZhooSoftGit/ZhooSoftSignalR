@@ -78,53 +78,67 @@ namespace ZhooSoft.Tracker.Hubs
 
         public async Task SendBookingRequest(RideRequestDto booking)
         {
-            if (!IsRequestValid(booking))
+            try
             {
-                var userConn = ConnectionMapping.GetConnection(booking.UserId);
-                if (userConn != null)
+                if (!IsRequestValid(booking))
                 {
-                    await Clients.Client(userConn).SendAsync("InvalidRequest", booking.RideRequestId);
+                    var userConn = ConnectionMapping.GetConnection(booking.UserId);
+                    if (userConn != null)
+                    {
+                        await Clients.Client(userConn).SendAsync("InvalidRequest", booking.RideRequestId);
+                    }
+                    return;
                 }
-                return;
+
+                // Same Booking request
+                if (_bookingStateService.PendingBookings.TryGetValue(booking.RideRequestId, out var existingBookingState))
+                {
+                    return;
+                }
+
+                var nearby = _store.GetNearbyIdleDriver(booking.PickupLatitude.Value, booking.PickupLongitude.Value, 5);
+                var activeDriverIds = RideConnectionMapping.ActiveRides.Values.Select(r => r.DriverId).ToHashSet();
+                var IdleDriver = nearby.Where(d => !activeDriverIds.Contains(d.DriverId)).ToList();
+                if (IdleDriver.Count == 0)
+                {
+                    var userConn = ConnectionMapping.GetConnection(booking.UserId);
+                    if (userConn != null)
+                    {
+                        _ = _mainApiService.UpdateBookingStatus(new UpdateTripStatusDto { RideRequestId = booking.RideRequestId, RideStatus = RideStatus.NoDrivers });
+                        await Clients.Client(userConn).SendAsync("NoDriverAvailable", booking.RideRequestId);
+                    }
+                    return;
+                }
+
+                var bookingState = new PendingBookingState
+                {
+                    RideRequestId = booking.RideRequestId,
+                    UserId = booking.UserId
+                };
+
+                var driversToOffer = IdleDriver.Take(5).ToList();
+
+                foreach (var driver in driversToOffer)
+                {
+                    bookingState.OfferedDrivers.Add(driver.DriverId);
+
+                    var driverConn = ConnectionMapping.GetConnection(driver.DriverId);
+                    if (driverConn != null)
+                    {
+                        await Clients.Client(driverConn).SendAsync("ReceiveBookingRequest", booking);
+                    }
+                }
+
+                _bookingStateService.PendingBookings[bookingState.RideRequestId] = bookingState;
+
+                // start monitor task
+                _ = _bookingMonitorService.MonitorBookingAsync(bookingState);
+            }
+            catch (Exception ex)
+            {
+
             }
 
-            var nearby = _store.GetNearbyIdleDriver(booking.PickupLatitude, booking.PickupLongitude, 5);
-            var activeDriverIds = RideConnectionMapping.ActiveRides.Values.Select(r => r.DriverId).ToHashSet();
-            var IdleDriver = nearby.Where(d => !activeDriverIds.Contains(d.DriverId)).ToList();
-            if (IdleDriver.Count == 0)
-            {
-                var userConn = ConnectionMapping.GetConnection(booking.UserId);
-                if (userConn != null)
-                {
-                    _ = _mainApiService.UpdateBookingStatus(new UpdateTripStatusDto { RideRequestId = booking.RideRequestId, RideStatus = RideStatus.NoDrivers });
-                    await Clients.Client(userConn).SendAsync("NoDriverAvailable", booking.RideRequestId);
-                }
-                return;
-            }
-
-            var bookingState = new PendingBookingState
-            {
-                RideRequestId = booking.RideRequestId,
-                UserId = booking.UserId
-            };
-
-            var driversToOffer = IdleDriver.Take(5).ToList();
-
-            foreach (var driver in driversToOffer)
-            {
-                bookingState.OfferedDrivers.Add(driver.DriverId);
-
-                var driverConn = ConnectionMapping.GetConnection(driver.DriverId);
-                if (driverConn != null)
-                {
-                    await Clients.Client(driverConn).SendAsync("ReceiveBookingRequest", booking);
-                }
-            }
-
-            _bookingStateService.PendingBookings[bookingState.RideRequestId] = bookingState;
-
-            // start monitor task
-            _ = _bookingMonitorService.MonitorBookingAsync(bookingState);
         }
 
         private bool IsRequestValid(RideRequestDto booking)
@@ -277,7 +291,7 @@ namespace ZhooSoft.Tracker.Hubs
         private async Task<bool> CancelRideBooking(int rideRequestId)
         {
             var cancelSuccess = false;
-            if (!_bookingStateService.PendingBookings.TryGetValue(rideRequestId, out var bookingState) && bookingState != null)
+            if (_bookingStateService.PendingBookings.TryGetValue(rideRequestId, out var bookingState) && bookingState != null)
             {
                 // Cancel timeout task
                 bookingState.TimeoutCts.Cancel();
