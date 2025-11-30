@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using System.Text;
 using ZhooSoft.Tracker.CustomEventBus;
 using ZhooSoft.Tracker.Hubs;
@@ -57,21 +57,6 @@ builder.Services.AddSwaggerGen(c =>
         Name = "Authorization",
         Description = "Bearer Authentication with JWT Token",
         Type = SecuritySchemeType.Http
-    });
-
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            new string[] {}
-        }
     });
 });
 
