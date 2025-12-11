@@ -2,7 +2,13 @@
 {
     public static class GeoHelper
     {
+        #region Constants
+
         private const double EarthRadiusKm = 6371;
+
+        #endregion
+
+        #region Methods
 
         public static double CalculateDistanceKm(double lat1, double lon1, double lat2, double lon2)
         {
@@ -19,6 +25,8 @@
         }
 
         private static double ToRadians(double angle) => angle * (Math.PI / 180);
+
+        #endregion
     }
 
 }

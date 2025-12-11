@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc.Filters;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace ZhooSoft.Tracker.Common
 {
     public class ClientAuthAttribute : Attribute, IAsyncActionFilter
     {
+        #region Methods
+
         public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
         {
             var config = context.HttpContext.RequestServices.GetRequiredService<IConfiguration>();
@@ -19,6 +21,8 @@ namespace ZhooSoft.Tracker.Common
 
             await next();
         }
+
+        #endregion
     }
 
 }

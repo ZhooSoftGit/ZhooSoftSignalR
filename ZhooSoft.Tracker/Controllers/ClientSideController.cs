@@ -8,8 +8,15 @@ namespace ZhooSoft.Tracker.Controllers
     [Route("api/clientside")]
     public class ClientSideController : ControllerBase
     {
-        private readonly DriverLocationStore _store;
+        #region Fields
+
         private readonly ILogger<ClientSideController> _logger;
+
+        private readonly DriverLocationStore _store;
+
+        #endregion
+
+        #region Constructors
 
         public ClientSideController(DriverLocationStore store, ILogger<ClientSideController> logger)
         {
@@ -17,11 +24,15 @@ namespace ZhooSoft.Tracker.Controllers
             _logger = logger;
         }
 
+        #endregion
+
+        #region Methods
+
         [HttpGet("nearby-drivers")]
         [ClientAuth]
         public IActionResult GetNearbyDrivers([FromQuery] double latitude, [FromQuery] double longitude, [FromQuery] double radiusKm = 5)
         {
-            var nearbyDrivers = _store.GetNearby(latitude,longitude,radiusKm).ToList();
+            var nearbyDrivers = _store.GetNearby(latitude, longitude, radiusKm).ToList();
             return Ok(nearbyDrivers);
         }
 
@@ -33,5 +44,6 @@ namespace ZhooSoft.Tracker.Controllers
             return Ok(allDrivers);
         }
 
+        #endregion
     }
 }

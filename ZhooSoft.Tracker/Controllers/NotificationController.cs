@@ -12,12 +12,22 @@ namespace ZhooSoft.Tracker.Controllers
     [Route("api/notify")]
     public class NotificationController : ControllerBase
     {
+        #region Fields
+
         private readonly IHubContext<DriverLocationHub> _hubContext;
+
+        #endregion
+
+        #region Constructors
 
         public NotificationController(IHubContext<DriverLocationHub> hubContext)
         {
             _hubContext = hubContext;
         }
+
+        #endregion
+
+        #region Methods
 
         [HttpPost("send-to-user")]
         public async Task<IActionResult> SendToUser([FromBody] MessageDto dto)
@@ -30,5 +40,7 @@ namespace ZhooSoft.Tracker.Controllers
 
             return Ok();
         }
+
+        #endregion
     }
 }

@@ -2,13 +2,24 @@
 {
     public class InMemoryEventBus : IEventBus
     {
-        private readonly IServiceProvider _serviceProvider;
+        #region Fields
+
         private readonly Dictionary<Type, List<Type>> _handlers = new();
+
+        private readonly IServiceProvider _serviceProvider;
+
+        #endregion
+
+        #region Constructors
 
         public InMemoryEventBus(IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
         }
+
+        #endregion
+
+        #region Methods
 
         public async Task PublishAsync(IIntegrationEvent @event)
         {
@@ -40,5 +51,7 @@
 
             _handlers[eventType].Add(handlerType);
         }
+
+        #endregion
     }
 }

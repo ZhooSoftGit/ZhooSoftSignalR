@@ -1,6 +1,4 @@
-﻿using System.Text.Json;
-
-namespace ZhooSoft.Tracker.CustomEventBus
+﻿namespace ZhooSoft.Tracker.CustomEventBus
 {
     //public class AzureServiceBusEventBus : IEventBus
     //{

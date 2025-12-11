@@ -2,7 +2,29 @@
 {
     public class MessageDto
     {
-        public int UserId { get; set; }
+        #region Properties
+
         public string Message { get; set; }
+
+        public int UserId { get; set; }
+
+        #endregion
+    }
+
+    public class RideEventModel
+    {
+        #region Properties
+
+        public int DriverId { get; set; }
+
+        public object? Payload { get; set; }
+
+        public int RideRequestId { get; set; }
+
+        public RideStatus Status { get; set; }
+
+        public int UserId { get; set; }
+
+        #endregion
     }
 }

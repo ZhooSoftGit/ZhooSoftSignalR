@@ -1,341 +1,126 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.SignalR;
-using ZhooSoft.Tracker.CustomEventBus;
+﻿using Microsoft.AspNetCore.SignalR;
+using ZhooSoft.Tracker.AzureServiceBus;
 using ZhooSoft.Tracker.Models;
 using ZhooSoft.Tracker.Services;
 using ZhooSoft.Tracker.Store;
 
 namespace ZhooSoft.Tracker.Hubs
 {
-    [Authorize]
+    //[Authorize]
     public class DriverLocationHub : Hub
     {
-        private readonly DriverLocationStore _store;
-        private BookingMonitorService _bookingMonitorService;
-        private BookingStateService _bookingStateService;
-        private IEventBus _eventBus;
-        private IMainApiService _mainApiService;
+        #region Fields
 
-        public DriverLocationHub(DriverLocationStore store, BookingMonitorService bookingMonitorService,
-            BookingStateService stateService, IEventBus eventBus, IMainApiService mainApiService)
+        private readonly BookingMonitorService _bookingMonitorService;
+
+        private readonly ITrackerApiRideEventPublisher _publishEventHandler;
+
+        private readonly DriverRedisRepository _redis;
+
+        #endregion
+
+        #region Constructors
+
+        public DriverLocationHub(
+            DriverRedisRepository redis,
+            ITrackerApiRideEventPublisher publishEventHandler,
+            BookingMonitorService bookingMonitorService)
         {
-            _store = store;
+            _redis = redis;
+            _publishEventHandler = publishEventHandler;
             _bookingMonitorService = bookingMonitorService;
-            _bookingStateService = stateService;
-            _eventBus = eventBus;
-            _mainApiService = mainApiService;
+        }
+
+        #endregion
+
+        #region Methods
+
+        // --------------------------------------------------------
+        // GET NEARBY DRIVERS
+        // --------------------------------------------------------
+        public async Task<List<DriverLocation>> GetNearbyDrivers(double lat, double lng)
+            => await _redis.GetNearbyIdleDriversAsync(lat, lng, 5);
+
+        // Get User Connection ID
+        public async Task<string?> GetUserConnectionId(int? userId)
+        {
+            if (userId == null) return null;
+            return await _redis.GetConnectionAsync(userId.Value);
         }
 
         public override async Task OnConnectedAsync()
         {
             var userId = GetUserId();
             if (userId != null)
-                ConnectionMapping.Add(userId.Value, Context.ConnectionId);
+            {
+                await _redis.SetConnectionAsync(userId.Value, Context.ConnectionId);
+                await _redis.SetUserStateAsync(userId.Value, UserAppState.Foreground);
+            }
 
             await base.OnConnectedAsync();
         }
 
-        public override async Task OnDisconnectedAsync(Exception? ex)
+        public override async Task OnDisconnectedAsync(Exception? exception)
         {
             var userId = GetUserId();
             if (userId != null)
             {
-                ConnectionMapping.Remove(userId.Value);
-                _store.Remove(userId.Value);
+                await _redis.SetUserStateAsync(userId.Value, UserAppState.Background);
+                await _redis.RemoveConnectionAsync(userId.Value);
             }
 
-            await base.OnDisconnectedAsync(ex);
-        }
+            await base.OnDisconnectedAsync(exception);
+        }       
 
-        private int? GetUserId()
-        {
-            var userId = Context.GetHttpContext()?.Request.Query["userId"];
-            if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out var currentUserId))
-            {
-                return currentUserId;
-            }
-            return null;
-        }
-
-        public async Task UpdateDriverLocation(DriverLocation location)
+        // --------------------------------------------------------
+        // DRIVER LOCATION UPDATE
+        // --------------------------------------------------------
+        public async Task UpdateDriverLocation(DriverLocation loc)
         {
             var driverId = GetUserId();
-            if (driverId != null)
-            {
-                location.DriverId = driverId.Value;
-                _store.Update(driverId.Value, location);
+            if (driverId == null) return;
 
-                await _eventBus.PublishAsync(new DriverLocationUpdatedEvent(driverId.Value, location.Latitude, location.Longitude));
-            }
-        }
+            loc.DriverId = driverId.Value;
+            await _redis.SetDriverLocationAsync(loc);
 
-        public Task<List<DriverLocation>> GetNearbyDrivers(double lat, double lng)
-        {
-            var result = _store.GetNearby(lat, lng, 5); // 5 KM radius
-            return Task.FromResult(result);
+            _ = NotifyDriverLocationOnRide(driverId.Value, loc);
         }
 
 
-        public async Task SendBookingRequest(RideRequestDto booking)
+        // --------------------------------------------------------
+        // SEND LIVE LOCATION TO USER
+        // --------------------------------------------------------
+        private async Task NotifyDriverLocationOnRide(int driverId, DriverLocation location)
         {
             try
             {
-                if (!IsRequestValid(booking))
+                if (await _redis.GetOnRideUserIdByDriverAsync(driverId) is int userId && userId > 0)
                 {
-                    var userConn = ConnectionMapping.GetConnection(booking.UserId);
+                    var userConn = await _redis.GetConnectionAsync(userId);
                     if (userConn != null)
                     {
-                        await Clients.Client(userConn).SendAsync("InvalidRequest", booking.RideRequestId);
-                    }
-                    return;
-                }
-
-                // Same Booking request
-                if (_bookingStateService.PendingBookings.TryGetValue(booking.RideRequestId, out var existingBookingState))
-                {
-                    return;
-                }
-
-                var nearby = _store.GetNearbyIdleDriver(booking.PickupLatitude.Value, booking.PickupLongitude.Value, 5);
-                var activeDriverIds = RideConnectionMapping.ActiveRides.Values.Select(r => r.DriverId).ToHashSet();
-                var IdleDriver = nearby.Where(d => !activeDriverIds.Contains(d.DriverId)).ToList();
-                if (IdleDriver.Count == 0)
-                {
-                    var userConn = ConnectionMapping.GetConnection(booking.UserId);
-                    if (userConn != null)
-                    {
-                        _ = _mainApiService.UpdateBookingStatus(new UpdateTripStatusDto { RideRequestId = booking.RideRequestId, RideStatus = RideStatus.NoDrivers });
-                        await Clients.Client(userConn).SendAsync("NoDriverAvailable", booking.RideRequestId);
-                    }
-                    return;
-                }
-
-                var bookingState = new PendingBookingState
-                {
-                    RideRequestId = booking.RideRequestId,
-                    UserId = booking.UserId
-                };
-
-                var driversToOffer = IdleDriver.Take(5).ToList();
-
-                foreach (var driver in driversToOffer)
-                {
-                    bookingState.OfferedDrivers.Add(driver.DriverId);
-
-                    var driverConn = ConnectionMapping.GetConnection(driver.DriverId);
-                    if (driverConn != null)
-                    {
-                        await Clients.Client(driverConn).SendAsync("ReceiveBookingRequest", booking);
+                        await Clients.Client(userConn).SendAsync("ReceiveDriverLocation", location);
                     }
                 }
-
-                _bookingStateService.PendingBookings[bookingState.RideRequestId] = bookingState;
-
-                // start monitor task
-                _ = _bookingMonitorService.MonitorBookingAsync(bookingState);
             }
             catch (Exception ex)
             {
-
-            }
-
-        }
-
-        private bool IsRequestValid(RideRequestDto booking)
-        {
-            bool hasPending = _bookingStateService.PendingBookings.Values
-                                .Any(b => b.UserId == booking.UserId);
-
-            if (hasPending)
-            {
-                return false;
-            }
-
-            // 2. Check in ActiveRides (in-memory/redis)
-            if (RideConnectionMapping.ActiveRides.Values.Any(r => r.UserId == booking.UserId))
-                return false;
-
-            return true;
-        }
-
-        public async Task RespondToBookingByDriver(int userId, int driverId, int rideRequestId, string status)
-        {
-            if (!_bookingStateService.PendingBookings.TryGetValue(rideRequestId, out var bookingState))
-            {
-                await Clients.Caller.SendAsync("BookingExpired", rideRequestId);
-                return;
-            }
-
-            if (bookingState.AssignedDriverId != null || bookingState.RespondedDrivers.Contains(driverId))
-                return;
-
-            bookingState.RespondedDrivers.Add(driverId);
-
-            if (status.Equals("assigned", StringComparison.OrdinalIgnoreCase))
-            {
-                bookingState.AssignedDriverId = driverId;
-                bookingState.AssignmentTcs.TrySetResult(driverId);
-            }
-            else if (bookingState.RespondedDrivers.Count >= 5)
-            {
-                bookingState.AssignmentTcs.TrySetCanceled();
+                // Log exception (logging mechanism not shown here)
             }
         }
 
-        public async Task<bool> StartRide(int rideRequestId, string enteredOtp)
-        {
-            if (RideConnectionMapping.ActiveRides.TryGetValue(rideRequestId, out var ride))
-            {
-                if (enteredOtp == ride.StartTripOtp)
-                {
-                    var userConn = ConnectionMapping.GetConnection(ride.UserId);
-                    if (userConn != null)
-                        await Clients.Client(userConn).SendAsync("TripStarted", rideRequestId);
-
-                    var driverConn = ConnectionMapping.GetConnection(ride.DriverId);
-                    if (driverConn != null)
-                        await Clients.Client(driverConn).SendAsync("TripStarted", rideRequestId);
-
-                    return true;
-                }
-                else
-                {
-                    await Clients.Caller.SendAsync("OtpVerificationFailed", new
-                    {
-                        Reason = "Invalid Start OTP"
-                    });
-                    return false;
-                }
-            }
-
-            return false;
-        }
-
-        public async Task<bool> EndRide(int rideRequestId, string enteredOtp)
-        {
-            if (RideConnectionMapping.ActiveRides.TryGetValue(rideRequestId, out var ride))
-            {
-                if (enteredOtp == ride.EndTripOtp)
-                {
-                    var userConn = ConnectionMapping.GetConnection(ride.UserId);
-                    if (userConn != null)
-                        await Clients.Client(userConn).SendAsync("TripCompleted", rideRequestId);
-
-                    var driverConn = ConnectionMapping.GetConnection(ride.DriverId);
-                    if (driverConn != null)
-                        await Clients.Client(driverConn).SendAsync("TripCompleted", rideRequestId);
-
-                    // Remove from active rides after completion
-                    RideConnectionMapping.ActiveRides.TryRemove(rideRequestId, out _);
-
-                    return true;
-                }
-                else
-                {
-                    await Clients.Caller.SendAsync("OtpVerificationFailed", new
-                    {
-                        Reason = "Invalid End OTP"
-                    });
-                    return false;
-                }
-            }
-
-            return false;
-        }
-
-
-
-        public async Task SendLiveLocationToUser(int driverId)
-        {
-            var location = _store.Get(driverId);
-            if (location != null)
-            {
-                await Clients.Caller.SendAsync("ReceiveDriverLocation", location);
-            }
-        }
-
-        public async Task StartPickupNotification(int rideRequestId)
-        {
-            if (RideConnectionMapping.ActiveRides.TryGetValue(rideRequestId, out var rideInfo))
-            {
-                var userConn = ConnectionMapping.GetConnection(rideInfo.UserId);
-                if (userConn != null)
-                {
-                    await Clients.Client(userConn).SendAsync("StartPickupNotification", rideRequestId);
-                }
-            }
-        }
-
-        public async Task PickupReachedNotification(int rideRequestId)
-        {
-            if (RideConnectionMapping.ActiveRides.TryGetValue(rideRequestId, out var participants))
-            {
-                var userConn = ConnectionMapping.GetConnection(participants.UserId);
-                if (userConn != null)
-                {
-                    await Clients.Client(userConn).SendAsync("PickupReachedNotification", rideRequestId);
-                }
-            }
-        }
-
-        public async Task<bool> CancelBooking(int rideRequestId)
-        {
-            return await CancelRideBooking(rideRequestId);
-        }
-
-        public async Task CancelTripNotification(int rideRequestId)
-        {
-            await CancelRideBooking(rideRequestId);
-        }
-
-        private async Task<bool> CancelRideBooking(int rideRequestId)
-        {
-            var cancelSuccess = false;
-            if (_bookingStateService.PendingBookings.TryGetValue(rideRequestId, out var bookingState) && bookingState != null)
-            {
-                // Cancel timeout task
-                bookingState.TimeoutCts.Cancel();
-
-                // Cancel any pending assignment
-                bookingState.AssignmentTcs.TrySetCanceled();
-
-                cancelSuccess = true;
-                // Notify offered drivers
-                foreach (var driverId in bookingState.OfferedDrivers)
-                {
-                    var conn = ConnectionMapping.GetConnection(driverId);
-                    if (conn != null)
-                        await Clients.Client(conn)
-                            .SendAsync("BookingCancelled", rideRequestId);
-                }
-
-                // Notify user (optional confirmation)
-                var userConn = ConnectionMapping.GetConnection(bookingState.UserId);
-                if (userConn != null)
-                    await Clients.Client(userConn)
-                        .SendAsync("BookingCancelled", rideRequestId);
-            }
-
-            if (RideConnectionMapping.ActiveRides.TryGetValue(rideRequestId, out var ride))
-            {
-                var userConn = ConnectionMapping.GetConnection(ride.UserId);
-                if (userConn != null)
-                    await Clients.Client(userConn).SendAsync("TripCancelled", rideRequestId);
-
-                var driverConn = ConnectionMapping.GetConnection(ride.DriverId);
-                if (driverConn != null)
-                    await Clients.Client(driverConn).SendAsync("TripCancelled", rideRequestId);
-
-                RideConnectionMapping.ActiveRides.TryRemove(rideRequestId, out _);
-            }
-
-            return cancelSuccess;
-        }
-
-
+        /// <summary>
+        /// Send ride message from driver to user or user to driver
+        /// </summary>
+        /// <param name="rideRequestId"></param>
+        /// <param name="message"></param>
+        /// <param name="senderType"></param>
+        /// <param name="senderId"></param>
+        /// <returns></returns>
         public async Task SendRideMessage(int rideRequestId, string message, string senderType, int senderId)
         {
-            if (RideConnectionMapping.ActiveRides.TryGetValue(rideRequestId, out var ride))
+            var connectionInfo = await _redis.GetRideConnectionAsync(rideRequestId);
+            if (connectionInfo != null && connectionInfo.UserId.HasValue && connectionInfo.DriverId.HasValue)
             {
                 var rideMessage = new RideMessage
                 {
@@ -350,11 +135,11 @@ namespace ZhooSoft.Tracker.Hubs
 
                 if (senderType.Equals("driver", StringComparison.OrdinalIgnoreCase))
                 {
-                    recipientConn = ConnectionMapping.GetConnection(ride.UserId);
+                    recipientConn = await _redis.GetConnectionAsync(connectionInfo.UserId.Value);
                 }
                 else if (senderType.Equals("user", StringComparison.OrdinalIgnoreCase))
                 {
-                    recipientConn = ConnectionMapping.GetConnection(ride.DriverId);
+                    recipientConn = await _redis.GetConnectionAsync(connectionInfo.DriverId.Value);
                 }
 
                 if (recipientConn != null)
@@ -364,5 +149,16 @@ namespace ZhooSoft.Tracker.Hubs
             }
         }
 
+        private int? GetUserId()
+        {
+            var userId = Context.GetHttpContext()?.Request.Query["userId"];
+            if (!string.IsNullOrEmpty(userId) && int.TryParse(userId, out var currentUserId))
+            {
+                return currentUserId;
+            }
+            return null;
+        }
+
+        #endregion
     }
 }

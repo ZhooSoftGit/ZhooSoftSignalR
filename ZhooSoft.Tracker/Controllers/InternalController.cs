@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using System.Collections.Concurrent;
 using ZhooSoft.Tracker.Common;
 using ZhooSoft.Tracker.Models;
 using ZhooSoft.Tracker.Store;
@@ -10,14 +9,25 @@ namespace ZhooSoft.Tracker.Controllers
     [Route("api/internal")]
     public class InternalController : ControllerBase
     {
+        #region Fields
+
         private readonly IConfiguration _config;
+
         private readonly DriverLocationStore _store;
+
+        #endregion
+
+        #region Constructors
 
         public InternalController(IConfiguration config, DriverLocationStore store)
         {
             _config = config;
             _store = store;
         }
+
+        #endregion
+
+        #region Methods
 
         [HttpGet("driver-location/{driverId}")]
         [ServiceAuth] // ✅ Shared secret header check
@@ -62,5 +72,7 @@ namespace ZhooSoft.Tracker.Controllers
 
             return Ok(results);
         }
+
+        #endregion
     }
 }

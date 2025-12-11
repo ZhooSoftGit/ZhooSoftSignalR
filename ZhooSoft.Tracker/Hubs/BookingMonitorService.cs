@@ -1,81 +1,62 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using ZhooSoft.Tracker.AzureServiceBus;
 using ZhooSoft.Tracker.Models;
-using ZhooSoft.Tracker.Services;
-using ZhooSoft.Tracker.Store;
 
 namespace ZhooSoft.Tracker.Hubs
 {
     public class BookingMonitorService
     {
+        #region Fields
+
         private readonly IHubContext<DriverLocationHub> _hubContext;
 
         private BookingStateService _bookingStateService;
-        private IMainApiService _mainApiService;
 
-        public BookingMonitorService(IHubContext<DriverLocationHub> hubContext, BookingStateService stateService, IMainApiService mainApiService)
+        private DriverRedisRepository _driverRedisRepository;
+
+        private ITrackerApiRideEventPublisher _publishEventHandler;
+
+        #endregion
+
+        #region Constructors
+
+        public BookingMonitorService(IHubContext<DriverLocationHub> hubContext,
+            ITrackerApiRideEventPublisher publishEventHandler, DriverRedisRepository driverRedisRepository)
         {
             _hubContext = hubContext;
-            _bookingStateService = stateService;
-            _mainApiService = mainApiService;
+            _publishEventHandler = publishEventHandler;
+            _driverRedisRepository = driverRedisRepository;
+        }
+
+        #endregion
+
+        #region Methods
+
+        public async Task<string?> GetUserConnectionId(int? userId)
+        {
+            if (userId == null) return null;
+            return await _driverRedisRepository.GetConnectionAsync(userId.Value);
         }
 
         public async Task MonitorBookingAsync(PendingBookingState state)
         {
             try
             {
-                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10), state.TimeoutCts.Token);
-                var finished = await Task.WhenAny(state.AssignmentTcs.Task, timeoutTask);
+                await Task.Delay(TimeSpan.FromSeconds(15));
 
-                var userConn = ConnectionMapping.GetConnection(state.UserId);
+                var status = await _driverRedisRepository.GetRideStatusAsync(state.RideRequestId);
 
-
-                if (finished == timeoutTask && userConn != null)
+                if (status == RideStatus.Requested)
                 {
-                    if (timeoutTask.IsCanceled || state.AssignmentTcs.Task.IsCanceled)
+                    await _driverRedisRepository.UpdateRideStatusAsync(state.RideRequestId, RideStatus.NoDrivers);
+
+                    // send no driver found response
+                    await SendNoDriverNotification(new RideEventModel
                     {
-                        return;
-                    }
-
-                    _ = _mainApiService.UpdateBookingStatus(new UpdateTripStatusDto { RideRequestId = state.RideRequestId, RideStatus = RideStatus.NoDrivers });
-
-                    // timeout
-                    await _hubContext.Clients.Client(userConn)
-                        .SendAsync("NoDriverAvailable", state.RideRequestId);
-                }
-                else if (state.AssignmentTcs.Task.IsCompletedSuccessfully)
-                {
-                    var driverId = state.AssignmentTcs.Task.Result;
-                    var driverConn = ConnectionMapping.GetConnection(driverId);
-
-                    if (userConn != null)
-                    {
-                        var ride = await _mainApiService.CreateRideAsync(new AcceptRideRequest { DriverId = driverId, RideRequestId = state.RideRequestId });
-
-                        if (ride != null)
-                        {
-                            var rideInfo = new RideConnectionInfo
-                            {
-                                RideRequestId = state.RideRequestId,
-                                UserId = state.UserId,
-                                DriverId = driverId,
-                                StartTripOtp = ride.StartOtp,
-                                EndTripOtp = ride.EndOtp
-                            };
-
-                            RideConnectionMapping.ActiveRides[state.RideRequestId] = rideInfo;
-
-                            await _hubContext.Clients.Client(userConn).SendAsync("BookingConfirmed", ride);
-
-                            if (driverConn != null)
-                            {
-                                await _hubContext.Clients.Client(driverConn).SendAsync("BookingConfirmed", ride);
-                            }
-                        }
-                        else if (driverConn != null)
-                        {
-                            await _hubContext.Clients.Client(driverConn).SendAsync("BookingCancelled", ride);
-                        }
-                    }
+                        RideRequestId = state.RideRequestId,
+                        UserId = state.UserId
+                    });
+                    await _publishEventHandler.PublishDriverOfferTimeoutEventAsync(state.RideRequestId, state.UserId);
                 }
             }
             catch (Exception ex)
@@ -84,9 +65,21 @@ namespace ZhooSoft.Tracker.Hubs
             }
             finally
             {
-                state.TimeoutCts.Cancel();
-                _bookingStateService.PendingBookings.TryRemove(state.RideRequestId, out _);
+
             }
         }
+
+        public async Task SendNoDriverNotification(RideEventModel rideEventModel)
+        {
+            if (await GetUserConnectionId(rideEventModel.UserId) is string userConn)
+            {
+                if (userConn != null)
+                {
+                    await _hubContext.Clients.Client(userConn).SendAsync("NoDriverAvailable", rideEventModel.RideRequestId);
+                }
+            }
+        }
+
+        #endregion
     }
 }

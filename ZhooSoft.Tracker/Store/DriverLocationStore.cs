@@ -5,11 +5,22 @@ namespace ZhooSoft.Tracker.Store
 {
     public class DriverLocationStore
     {
+        #region Fields
+
         private readonly ConcurrentDictionary<int, DriverLocation> _locations = new();
 
-        public void Update(int driverId, DriverLocation location) => _locations[driverId] = location;
+        #endregion
 
-        public void Remove(int driverId) => _locations.TryRemove(driverId, out _);
+        #region Methods
+
+        public DriverLocation? Get(int driverId) =>
+            _locations.TryGetValue(driverId, out var loc) ? loc : null;
+
+        public List<DriverLocation> GetAll()
+        {
+            return _locations.Values
+                .ToList();
+        }
 
         public List<DriverLocation> GetNearby(double lat, double lng, double radiusInKm)
         {
@@ -25,14 +36,11 @@ namespace ZhooSoft.Tracker.Store
                 .ToList();
         }
 
-        public List<DriverLocation> GetAll()
-        {
-            return _locations.Values
-                .ToList();
-        }
+        public void Remove(int driverId) => _locations.TryRemove(driverId, out _);
 
-        public DriverLocation? Get(int driverId) =>
-            _locations.TryGetValue(driverId, out var loc) ? loc : null;
+        public void Update(int driverId, DriverLocation location) => _locations[driverId] = location;
+
+        private static double DegreesToRadians(double deg) => deg * (Math.PI / 180);
 
         private static double GetDistance(double lat1, double lon1, double lat2, double lon2)
         {
@@ -45,6 +53,6 @@ namespace ZhooSoft.Tracker.Store
             return R * 2 * Math.Asin(Math.Min(1, Math.Sqrt(a)));
         }
 
-        private static double DegreesToRadians(double deg) => deg * (Math.PI / 180);
+        #endregion
     }
 }

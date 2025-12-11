@@ -2,10 +2,18 @@
 {
     public class RideMessage
     {
-        public int RideRequestId { get; set; }
-        public int SenderId { get; set; }
-        public string SenderType { get; set; } // "user" or "driver"
+        #region Properties
+
         public string Message { get; set; }
+
+        public int RideRequestId { get; set; }
+
+        public int SenderId { get; set; }
+
+        public string SenderType { get; set; }
+
         public DateTime SentAt { get; set; } = DateTime.UtcNow;
+
+        #endregion
     }
 }

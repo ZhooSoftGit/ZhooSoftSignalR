@@ -8,12 +8,22 @@ namespace ZhooSoft.Tracker.CustomEventBus
 {
     public class DriverLocationUpdatedHandler : IIntegrationEventHandler<DriverLocationUpdatedEvent>
     {
+        #region Fields
+
         private readonly IHubContext<DriverLocationHub> _hubContext;
+
+        #endregion
+
+        #region Constructors
 
         public DriverLocationUpdatedHandler(IHubContext<DriverLocationHub> hubContext)
         {
             _hubContext = hubContext;
         }
+
+        #endregion
+
+        #region Methods
 
         public async Task HandleAsync(DriverLocationUpdatedEvent @event)
         {
@@ -31,5 +41,7 @@ namespace ZhooSoft.Tracker.CustomEventBus
                 }
             }
         }
+
+        #endregion
     }
 }

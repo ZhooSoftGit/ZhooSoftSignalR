@@ -1,9 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.13.35825.156 d17.13
+# Visual Studio Version 18
+VisualStudioVersion = 18.0.11222.15
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZhooSoft.Tracker", "ZhooSoft.Tracker.csproj", "{133A6174-8B87-4603-A618-DD574AC442C2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZCars.Shared", "..\..\ZCarsShared\ZCars.Shared\ZCars.Shared.csproj", "{63ED65BC-7D1B-5F95-D47A-A3BA117F67D9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zhoosoft.EventBus", "..\..\ZCarsShared\Zhoosoft.EventBus\Zhoosoft.EventBus\Zhoosoft.EventBus.csproj", "{48EBEE0A-9F35-6F43-02B6-4170F0BF5596}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +19,14 @@ Global
 		{133A6174-8B87-4603-A618-DD574AC442C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{133A6174-8B87-4603-A618-DD574AC442C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{133A6174-8B87-4603-A618-DD574AC442C2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{63ED65BC-7D1B-5F95-D47A-A3BA117F67D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{63ED65BC-7D1B-5F95-D47A-A3BA117F67D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{63ED65BC-7D1B-5F95-D47A-A3BA117F67D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{63ED65BC-7D1B-5F95-D47A-A3BA117F67D9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{48EBEE0A-9F35-6F43-02B6-4170F0BF5596}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{48EBEE0A-9F35-6F43-02B6-4170F0BF5596}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{48EBEE0A-9F35-6F43-02B6-4170F0BF5596}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{48EBEE0A-9F35-6F43-02B6-4170F0BF5596}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

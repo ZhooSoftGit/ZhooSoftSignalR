@@ -2,9 +2,7 @@
 {
     public class DriverLocationUpdatedEvent : IIntegrationEvent
     {
-        public int DriverId { get; }
-        public double Latitude { get; }
-        public double Longitude { get; }
+        #region Constructors
 
         public DriverLocationUpdatedEvent(int driverId, double latitude, double longitude)
         {
@@ -12,5 +10,17 @@
             Latitude = latitude;
             Longitude = longitude;
         }
+
+        #endregion
+
+        #region Properties
+
+        public int DriverId { get; }
+
+        public double Latitude { get; }
+
+        public double Longitude { get; }
+
+        #endregion
     }
 }

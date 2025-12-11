@@ -4,7 +4,13 @@ namespace ZhooSoft.Tracker.Services
 {
     public class MainApiService : IMainApiService
     {
+        #region Fields
+
         private readonly HttpClient _client;
+
+        #endregion
+
+        #region Constructors
 
         public MainApiService(HttpClient client, IConfiguration config)
         {
@@ -12,6 +18,10 @@ namespace ZhooSoft.Tracker.Services
             _client.BaseAddress = new Uri(config["MainApi:BaseUrl"]);
             _client.DefaultRequestHeaders.Add("X-Service-Auth", config["ServiceAuth:SharedSecret"]!); // for now
         }
+
+        #endregion
+
+        #region Methods
 
         public async Task<RideTripDto> CreateRideAsync(AcceptRideRequest rideRequest)
         {
@@ -26,6 +36,18 @@ namespace ZhooSoft.Tracker.Services
             {
                 return null;
             }
+        }
+
+        public async Task<bool> EndRideAsync(int rideId, string otp)
+        {
+            var response = await _client.PostAsJsonAsync($"api/rides/{rideId}/end", new { otp });
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> StartRideAsync(int rideId, string otp)
+        {
+            var response = await _client.PostAsJsonAsync($"api/rides/{rideId}/start", new { otp });
+            return response.IsSuccessStatusCode;
         }
 
         public async Task<bool> UpdateBookingStatus(UpdateTripStatusDto rideRequest)
@@ -44,16 +66,6 @@ namespace ZhooSoft.Tracker.Services
             }
         }
 
-        public async Task<bool> StartRideAsync(int rideId, string otp)
-        {
-            var response = await _client.PostAsJsonAsync($"api/rides/{rideId}/start", new { otp });
-            return response.IsSuccessStatusCode;
-        }
-
-        public async Task<bool> EndRideAsync(int rideId, string otp)
-        {
-            var response = await _client.PostAsJsonAsync($"api/rides/{rideId}/end", new { otp });
-            return response.IsSuccessStatusCode;
-        }
+        #endregion
     }
 }
