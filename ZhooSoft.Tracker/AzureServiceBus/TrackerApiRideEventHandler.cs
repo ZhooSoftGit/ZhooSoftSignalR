@@ -113,24 +113,20 @@ namespace ZhooSoft.Tracker
         // Ride notification
         public async Task SendRideConfirmationNotification(RideEventMessage eventMessage)
         {
-            if (eventMessage.Payload != null)
+            if (eventMessage.DriverId != null && eventMessage.RideRequestId != null)
             {
-                var payload = PayloadConverter.ConvertPayload<RideTripDto>(eventMessage.Payload);
-
-                if (payload != null && payload.DriverId.HasValue)
+                await _driverRedisRepository.UpdateRideStatusAsync(eventMessage.RideRequestId.Value, eventMessage.DriverId.Value, RideStatus.Assigned);
+                await _driverRedisRepository.SetDriverOnRideAsync(eventMessage.DriverId.Value, eventMessage.RideRequestId.Value);
+                var userConn = await GetUserConnectionId(eventMessage.UserId);
+                if (userConn != null)
                 {
-                    await _driverRedisRepository.UpdateRideStatusAsync(payload.RideRequestId, payload.DriverId.Value, RideStatus.Assigned);
-
-                    var userConn = await GetUserConnectionId(eventMessage.UserId);
-                    if (userConn != null)
+                    await _hub.Clients.Client(userConn).SendAsync("BookingConfirmed", new RideEventModel
                     {
-                        await _hub.Clients.Client(userConn).SendAsync("BookingConfirmed", payload);
-                    }
-                    var driverConn = await GetUserConnectionId(eventMessage.DriverId);
-                    if (driverConn != null)
-                    {
-                        await _hub.Clients.Client(driverConn).SendAsync("BookingConfirmed", payload);
-                    }
+                        RideRequestId = eventMessage.RideRequestId.Value,
+                        DriverId = eventMessage.DriverId.Value,
+                        Status = RideStatus.Assigned,
+                        UserId = eventMessage.UserId
+                    });
                 }
             }
         }
@@ -155,7 +151,7 @@ namespace ZhooSoft.Tracker
 
             if (rideEventModel.Status == RideStatus.Cancelled || rideEventModel.Status == RideStatus.Completed)
             {
-                await _driverRedisRepository.ClearDriverOnRideAsync(rideEventModel.RideRequestId);
+                await _driverRedisRepository.ClearDriverOnRideAsync(rideEventModel.DriverId);
                 await _driverRedisRepository.ClearRideInfoAsync(rideEventModel.RideRequestId);
             }
         }

@@ -1,8 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using ZhooSoft.Tracker.AzureServiceBus;
 using ZhooSoft.Tracker.Models;
-using ZhooSoft.Tracker.Services;
-using ZhooSoft.Tracker.Store;
 
 namespace ZhooSoft.Tracker.Hubs
 {
