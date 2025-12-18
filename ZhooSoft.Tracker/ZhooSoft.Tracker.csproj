@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\ZCarsShared\Zcars.Abstractions\ZCars.Abstractions.csproj" />
     <ProjectReference Include="..\..\ZCarsShared\ZCars.Shared\ZCars.Shared.csproj" />
     <ProjectReference Include="..\..\ZCarsShared\Zhoosoft.EventBus\Zhoosoft.EventBus\Zhoosoft.EventBus.csproj" />
   </ItemGroup>

@@ -1,4 +1,6 @@
-﻿namespace ZhooSoft.Tracker.Models
+﻿using ZCars.Abstractions;
+
+namespace ZhooSoft.Tracker.Models
 {
     public class MessageDto
     {

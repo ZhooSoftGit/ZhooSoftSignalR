@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using ZCars.Abstractions;
 using Zhoosoft.EventBus;
 using ZhooSoft.Tracker.AzureServiceBus;
 using ZhooSoft.Tracker.Helpers;

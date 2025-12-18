@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZCars.Shared", "..\..\ZCars
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zhoosoft.EventBus", "..\..\ZCarsShared\Zhoosoft.EventBus\Zhoosoft.EventBus\Zhoosoft.EventBus.csproj", "{48EBEE0A-9F35-6F43-02B6-4170F0BF5596}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZCars.Abstractions", "..\..\ZCarsShared\Zcars.Abstractions\ZCars.Abstractions.csproj", "{944514CA-6174-1506-88E6-6D43D716B61C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{48EBEE0A-9F35-6F43-02B6-4170F0BF5596}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{48EBEE0A-9F35-6F43-02B6-4170F0BF5596}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{48EBEE0A-9F35-6F43-02B6-4170F0BF5596}.Release|Any CPU.Build.0 = Release|Any CPU
+		{944514CA-6174-1506-88E6-6D43D716B61C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{944514CA-6174-1506-88E6-6D43D716B61C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{944514CA-6174-1506-88E6-6D43D716B61C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{944514CA-6174-1506-88E6-6D43D716B61C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
