@@ -117,7 +117,7 @@ namespace ZhooSoft.Tracker
             if (eventMessage.DriverId != null && eventMessage.RideRequestId != null)
             {
                 await _driverRedisRepository.UpdateRideStatusAsync(eventMessage.RideRequestId.Value, eventMessage.DriverId.Value, RideStatus.Assigned);
-                await _driverRedisRepository.SetDriverOnRideAsync(eventMessage.DriverId.Value, eventMessage.RideRequestId.Value);
+                await _driverRedisRepository.SetOnRideUsersAsync(eventMessage.DriverId.Value, eventMessage.UserId, eventMessage.RideRequestId.Value);
                 var userConn = await GetUserConnectionId(eventMessage.UserId);
                 if (userConn != null)
                 {
@@ -152,7 +152,7 @@ namespace ZhooSoft.Tracker
 
             if (rideEventModel.Status == RideStatus.Cancelled || rideEventModel.Status == RideStatus.Completed)
             {
-                await _driverRedisRepository.ClearDriverOnRideAsync(rideEventModel.DriverId);
+                await _driverRedisRepository.ClearOnRideUsersAsync(rideEventModel.DriverId, rideEventModel.UserId);
                 await _driverRedisRepository.ClearRideInfoAsync(rideEventModel.RideRequestId);
             }
         }

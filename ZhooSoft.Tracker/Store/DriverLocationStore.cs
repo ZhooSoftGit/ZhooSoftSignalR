@@ -32,7 +32,7 @@ namespace ZhooSoft.Tracker.Store
         public List<DriverLocation> GetNearbyIdleDriver(double lat, double lng, double radiusInKm)
         {
             return _locations.Values
-                .Where(loc => GetDistance(lat, lng, loc.Latitude, loc.Longitude) <= radiusInKm && loc.Status != Common.DriverStatus.InRide)
+                .Where(loc => GetDistance(lat, lng, loc.Latitude, loc.Longitude) <= radiusInKm && loc.Status != ZCars.Abstractions.DriverStatusEnum.InRide)
                 .ToList();
         }
 
