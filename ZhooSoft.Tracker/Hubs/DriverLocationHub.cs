@@ -82,7 +82,7 @@ namespace ZhooSoft.Tracker.Hubs
             loc.DriverId = driverId.Value;
             await _redis.SetDriverLocationAsync(loc);
 
-            _ = NotifyDriverLocationOnRide(driverId.Value, loc);
+            await NotifyDriverLocationOnRide(driverId.Value, loc);
         }
 
 
