@@ -119,6 +119,7 @@ namespace ZhooSoft.Tracker
                 await _driverRedisRepository.UpdateRideStatusAsync(eventMessage.RideRequestId.Value, eventMessage.DriverId.Value, RideStatus.Assigned);
                 await _driverRedisRepository.SetOnRideUsersAsync(eventMessage.DriverId.Value, eventMessage.UserId, eventMessage.RideRequestId.Value);
                 var userConn = await GetUserConnectionId(eventMessage.UserId);
+                var driverLocation = await _driverRedisRepository.GetDriverLocationAsync(eventMessage.DriverId.Value);
                 if (userConn != null)
                 {
                     await _hub.Clients.Client(userConn).SendAsync("BookingConfirmed", new RideEventModel
@@ -126,7 +127,9 @@ namespace ZhooSoft.Tracker
                         RideRequestId = eventMessage.RideRequestId.Value,
                         DriverId = eventMessage.DriverId.Value,
                         Status = RideStatus.Assigned,
-                        UserId = eventMessage.UserId
+                        UserId = eventMessage.UserId,
+                        Latitude = driverLocation?.Latitude,
+                        Longitude = driverLocation?.Longitude
                     });
                 }
             }
